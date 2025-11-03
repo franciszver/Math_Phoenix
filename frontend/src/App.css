@@ -1,0 +1,23 @@
+.App {
+  width: 100%;
+}
+
+header {
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+header p {
+  color: #888;
+  margin-top: 0.5rem;
+}
+
+main {
+  padding: 2rem;
+}
+

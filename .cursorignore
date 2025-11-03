@@ -1,0 +1,85 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# AWS
+.aws-sam/
+samconfig.toml
+.aws/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars
+
+# Testing
+coverage/
+.nyc_output/
+.coverage
+htmlcov/
+.pytest_cache/
+__pycache__/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Large binary files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Generated files
+*.min.js
+*.min.css
+*.map
+
