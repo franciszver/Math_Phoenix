@@ -133,7 +133,13 @@ export async function submitProblemHandler(req, res, next) {
       progress_made: false
     };
 
-    const finalSession = await addStepToProblem(sessionCode, initialStep);
+    try {
+      await addStepToProblem(sessionCode, initialStep);
+    } catch (stepError) {
+      logger.error('Error adding initial step, but problem was created:', stepError);
+      // Continue anyway - problem and transcript are already created
+      // The step can be added later or this is just the initial prompt
+    }
 
     res.status(201).json({
       session_code: sessionCode,

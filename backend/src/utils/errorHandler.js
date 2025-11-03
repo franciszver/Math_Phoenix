@@ -51,11 +51,17 @@ export class OpenAIError extends AppError {
  * Handle errors and return appropriate response
  */
 export function handleError(error, req, res, next) {
+  // Safety check - if res already sent, don't try to send again
+  if (res.headersSent) {
+    return next(error);
+  }
+
   logger.error('Error occurred:', {
-    message: error.message,
-    stack: error.stack,
-    code: error.code,
-    statusCode: error.statusCode
+    message: error?.message || 'Unknown error',
+    stack: error?.stack,
+    code: error?.code,
+    statusCode: error?.statusCode,
+    name: error?.name
   });
 
   // Known application errors
@@ -64,7 +70,14 @@ export function handleError(error, req, res, next) {
       error: {
         message: error.message,
         code: error.code,
-        ...(error.field && { field: error.field })
+        ...(error.field && { field: error.field }),
+        ...(process.env.NODE_ENV === 'development' && error.originalError && {
+          originalError: {
+            message: error.originalError.message,
+            name: error.originalError.name,
+            code: error.originalError.code
+          }
+        })
       }
     });
   }
@@ -76,7 +89,12 @@ export function handleError(error, req, res, next) {
       error: {
         message: 'AWS service error',
         code: 'AWS_ERROR',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        awsError: process.env.NODE_ENV === 'development' ? {
+          name: error.name,
+          code: error.code,
+          message: error.message
+        } : undefined
       }
     });
   }
@@ -93,13 +111,21 @@ export function handleError(error, req, res, next) {
     });
   }
 
-  // Unknown errors
-  return res.status(500).json({
-    error: {
-      message: 'Internal server error',
-      code: 'INTERNAL_ERROR',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+  // Unknown errors - catch any issues with error handling itself
+  try {
+    return res.status(500).json({
+      error: {
+        message: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+        details: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined
+      }
+    });
+  } catch (handlerError) {
+    // If even error handling fails, log and try to send basic response
+    logger.error('Error handler itself failed:', handlerError);
+    if (!res.headersSent) {
+      res.status(500).json({ error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } });
     }
-  });
+  }
 }
 

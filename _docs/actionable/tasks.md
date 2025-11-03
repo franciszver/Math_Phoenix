@@ -26,8 +26,8 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Create S3 bucket for image uploads (`math-phoenix-uploads-20250103`).
 - [x] Create DynamoDB table for session storage with TTL for 30‑day expiration (`math-phoenix-sessions`).
 - [x] Enable Textract for OCR (configured in setup scripts, requires manual AWS console activation if not already enabled).
-- [ ] **Deferred to Phase 1**: Set up Lambda functions for input handling, session management, and routing.
-- [ ] **Deferred to Phase 1**: Configure Step Functions for OCR‑first → Vision fallback flow.
+- [ ] **Deferred to production**: Set up Lambda functions for input handling, session management, and routing (currently using Express server).
+- [ ] **Deferred to production**: Configure Step Functions for OCR‑first → Vision fallback flow (currently handled in Express code).
 
 ### Development Environment
 - [x] Configure local dev server (frontend + backend).
@@ -35,35 +35,36 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Implement basic error handling for API calls.
 - [x] Create verification script (`npm run verify` in `backend/`).
 - [x] Verify setup configuration (all environment variables, AWS resources, OpenAI config validated).
-- [ ] **Deferred to Phase 1**: Verify end‑to‑end flow: text input → LLM response → stored in DynamoDB.
+- [x] Verify end‑to‑end flow: text input → LLM response → stored in DynamoDB (tested and working).
 
 ---
 
 ## Phase 1 – Core Foundations (MVP Essentials)
 
 ### Problem Input
-- [ ] Implement **text input** for math problems.
-- [ ] Implement **image upload** (PNG/JPG).
-- [ ] Integrate **AWS S3** for image storage.
-- [ ] Add **OCR pipeline** using AWS Textract.
-- [ ] Add **Vision fallback** using OpenAI Vision API.
-- [ ] Normalize equations into **LaTeX**.
-- [ ] Auto‑tag problems into categories (arithmetic, algebra, geometry, word, multi‑step).
+- [x] Implement **text input** for math problems (API endpoint).
+- [x] Implement **image upload** (PNG/JPG) with validation.
+- [x] Integrate **AWS S3** for image storage (always stores for debugging).
+- [x] Add **OCR pipeline** using AWS Textract.
+- [x] Add **Vision fallback** using OpenAI Vision API (automatic fallback).
+- [x] Normalize equations into **LaTeX** (LLM-assisted).
+- [x] Auto‑tag problems into categories (arithmetic, algebra, geometry, word, multi‑step) - rule-based.
 
 ### Socratic Dialogue
-- [ ] Implement **multi‑turn conversation engine** with OpenAI LLM.
-- [ ] Enforce **Socratic prompt rules** (never give direct answers).
-- [ ] Add **hint logic** (if stuck >2 turns, provide hint).
-- [ ] Track **steps**: step number, tutor prompt, student response, hint usage.
+- [x] Implement **multi‑turn conversation engine** with OpenAI LLM.
+- [x] Enforce **Socratic prompt rules** (never give direct answers) - enhanced system prompt.
+- [x] Add **hint logic** (if stuck >2 turns with no progress, provide hint).
+- [x] Track **steps**: step number, tutor prompt, student response, hint usage, progress tracking.
 
 ### Math Rendering
-- [ ] Integrate **KaTeX** for equation rendering in chat UI.
+- [ ] Integrate **KaTeX** for equation rendering in chat UI (frontend - deferred to Phase 2).
 
 ### Session Management
-- [ ] Generate **short alphanumeric session codes** (6–8 chars).
-- [ ] Store sessions in **DynamoDB** with expiration (30 days).
-- [ ] Implement **hard delete** after expiration.
-- [ ] Store **transcripts linked to structured steps**.
+- [x] Generate **short alphanumeric session codes** (6 chars).
+- [x] Store sessions in **DynamoDB** with expiration (30 days TTL).
+- [x] Implement **hard delete** after expiration (DynamoDB TTL handles automatically).
+- [x] Store **transcripts linked to structured steps** (full transcript + structured steps per problem).
+- [x] Enforce one problem per session at a time.
 
 ---
 
@@ -87,9 +88,9 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 ## Phase 3 – Robustness & Analytics
 
 ### Technical Trade‑offs
-- [ ] Implement **OCR‑first routing** with Vision fallback.
-- [ ] Use **rule‑based difficulty classification** for MVP.
-- [ ] Ensure **session codes** are collision‑safe.
+- [x] Implement **OCR‑first routing** with Vision fallback (completed in Phase 1).
+- [x] Use **rule‑based difficulty classification** for MVP (completed in Phase 1).
+- [x] Ensure **session codes** are collision‑safe (6-char alphanumeric with validation).
 - [ ] Add logging/monitoring (CloudWatch) for OCR/Vision performance.
 - [ ] Collect structured data for future ML difficulty classifier.
 
@@ -113,5 +114,5 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 ---
 
 ## Socratic Approach (Ongoing Validation)
-- [ ] Validate flow: Parse → Inventory knowns → Identify goal → Guide method → Step through → Validate answer.
-- [ ] Ensure tutor tone remains **encouraging and adaptive**.
+- [x] Validate flow: Parse → Inventory knowns → Identify goal → Guide method → Step through → Validate answer (validated in testing).
+- [x] Ensure tutor tone remains **encouraging and adaptive** (validated in testing - tutor uses encouraging language).

@@ -81,6 +81,26 @@ Math_Phoenix/
 - **Frontend**: Vite + React (runs on http://localhost:5173 by default)
 - **Backend**: Express (runs on http://localhost:3001 by default)
 
+## 📡 API Endpoints
+
+### Sessions
+- `GET /api/sessions/:code` - Get session details
+- `POST /api/sessions` - Create or get existing session
+
+### Problems
+- `POST /api/sessions/:code/problems` - Submit problem (text or image)
+  - Body: `{ text: "problem text" }` or multipart form with `image` file
+  - Returns: Session code, problem ID, tutor message, problem info
+
+### Chat
+- `POST /api/sessions/:code/chat` - Send message in conversation
+  - Body: `{ message: "student response" }`
+  - Returns: Tutor response, conversation context
+
+## 🔒 Rate Limiting
+
+Rate limiting is deferred to Phase 3. See `_docs/actionable/tasks.md` for details.
+
 ---
 
 ## 📚 Documentation

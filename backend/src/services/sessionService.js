@@ -44,7 +44,13 @@ export async function createSession(sessionCode = null) {
     return session;
   } catch (error) {
     logger.error('Error creating session:', error);
-    throw new AWSError('Failed to create session', error);
+    logger.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      tableName: TABLE_NAME
+    });
+    throw new AWSError(`Failed to create session: ${error.message}`, error);
   }
 }
 

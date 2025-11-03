@@ -16,7 +16,7 @@ const fileFilter = (req, file, cb) => {
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new ValidationError(`Invalid file type. Allowed: PNG, JPG, JPEG`), 'image'));
+    cb(new ValidationError(`Invalid file type. Allowed: PNG, JPG, JPEG`, 'image'));
   }
 };
 

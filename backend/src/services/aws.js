@@ -13,15 +13,23 @@ import { createLogger } from '../utils/logger.js';
 const logger = createLogger();
 
 // AWS Configuration
+// If credentials are explicitly set in .env, use them. Otherwise, use default credential chain.
 const awsConfig = {
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-    ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-      }
-    : undefined // Will use default credentials chain (IAM role, env vars, etc.)
+  region: process.env.AWS_REGION || 'us-east-1'
 };
+
+// Only set credentials explicitly if both are provided in .env
+// Otherwise, let AWS SDK use default credential chain (which includes ~/.aws/credentials)
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  logger.debug('Using credentials from .env file');
+  awsConfig.credentials = {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  };
+} else {
+  logger.debug('Using default AWS credential chain (will check ~/.aws/credentials, environment, IAM role, etc.)');
+  // Don't set credentials - let SDK use default chain
+}
 
 // S3 Client
 export const s3Client = new S3Client(awsConfig);
