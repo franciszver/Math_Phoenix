@@ -3,6 +3,10 @@ import express from 'express';
 import cors from 'cors';
 import { createLogger } from './utils/logger.js';
 import { handleError } from './utils/errorHandler.js';
+import { getSessionHandler, createOrGetSessionHandler } from './handlers/sessionHandler.js';
+import { submitProblemHandler } from './handlers/problemHandler.js';
+import { sendChatMessageHandler } from './handlers/chatHandler.js';
+import { upload, validateUpload } from './middleware/upload.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,10 +25,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes will be added in Phase 1
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Backend API is working!' });
-});
+// API routes
+// Session routes
+app.get('/api/sessions/:code', getSessionHandler);
+app.post('/api/sessions', createOrGetSessionHandler);
+
+// Problem routes (with optional image upload)
+app.post('/api/sessions/:code/problems', upload.single('image'), submitProblemHandler);
+
+// Chat routes
+app.post('/api/sessions/:code/chat', sendChatMessageHandler);
 
 // 404 handler (must come before error handler)
 app.use((req, res) => {
