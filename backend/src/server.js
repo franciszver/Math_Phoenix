@@ -1,11 +1,8 @@
+import './config/env.js'; // Load environment variables first
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { createLogger } from './utils/logger.js';
 import { handleError } from './utils/errorHandler.js';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

@@ -67,7 +67,7 @@ Write-Host ""
 Write-Host "✅ Infrastructure setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📝 Add these to your .env file:" -ForegroundColor Cyan
-Write-Host "   S3_BUCKET_NAME=$BUCKET_NAME"
-Write-Host "   DYNAMODB_TABLE_NAME=$TABLE_NAME"
+Write-Host ('   S3_BUCKET_NAME=' + $BUCKET_NAME)
+Write-Host ('   DYNAMODB_TABLE_NAME=' + $TABLE_NAME)
 Write-Host ""
 

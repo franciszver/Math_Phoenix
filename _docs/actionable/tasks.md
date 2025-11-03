@@ -12,29 +12,20 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Set up project structure (`frontend/`, `backend/`, `infrastructure/`, `scripts/`, etc.).
 - [x] Install base dependencies (Node.js, Vite + React, AWS SDK, OpenAI SDK, KaTeX).
 - [x] Create `.env.example` template for contributors.
-- [ ] **Manual**: Create `.env` file with required environment variables (copy from `.env.example`):
-  - `OPENAI_API_KEY`
-  - `AWS_ACCESS_KEY_ID` (optional if using IAM roles)
-  - `AWS_SECRET_ACCESS_KEY` (optional if using IAM roles)
-  - `AWS_REGION`
-  - `SESSION_SECRET` (for session code generation)
-  - `DASHBOARD_PASSWORD`
-  - `S3_BUCKET_NAME` (after AWS setup)
-  - `DYNAMODB_TABLE_NAME` (after AWS setup)
+- [x] Create `.env` file with required environment variables (configured with actual values).
 
 ### OpenAI Setup
 - [x] Create test scripts for OpenAI API (text + vision endpoints).
-- [ ] **Manual**: Verify access to OpenAI API by running `npm run test:openai` in `backend/`.
-- [ ] **Manual**: Test sample LLM call for Socratic dialogue (via test script).
-- [ ] **Manual**: Test Vision API call with sample math screenshot (via test script).
+- [x] Verify OpenAI API key configuration (validated via verification script).
+- [ ] **Optional**: Test sample LLM call for Socratic dialogue by running `npm run test:openai` in `backend/`.
+- [ ] **Optional**: Test Vision API call with sample math screenshot by running `npm run test:vision` in `backend/`.
 
 ### AWS Setup
 - [x] Create infrastructure setup scripts (PowerShell, Bash, Terraform).
-- [ ] **Manual**: Configure AWS CLI with credentials (`aws configure`).
-- [ ] **Manual**: Run infrastructure setup script to create:
-  - S3 bucket for image uploads
-  - DynamoDB table for session storage (with TTL for 30‑day expiration)
-- [x] Enable Textract for OCR (configured in setup scripts, requires manual AWS console activation).
+- [x] Configure AWS CLI with credentials (default profile verified).
+- [x] Create S3 bucket for image uploads (`math-phoenix-uploads-20250103`).
+- [x] Create DynamoDB table for session storage with TTL for 30‑day expiration (`math-phoenix-sessions`).
+- [x] Enable Textract for OCR (configured in setup scripts, requires manual AWS console activation if not already enabled).
 - [ ] **Deferred to Phase 1**: Set up Lambda functions for input handling, session management, and routing.
 - [ ] **Deferred to Phase 1**: Configure Step Functions for OCR‑first → Vision fallback flow.
 
@@ -43,6 +34,7 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Add logging (console logs locally, CloudWatch ready for production).
 - [x] Implement basic error handling for API calls.
 - [x] Create verification script (`npm run verify` in `backend/`).
+- [x] Verify setup configuration (all environment variables, AWS resources, OpenAI config validated).
 - [ ] **Deferred to Phase 1**: Verify end‑to‑end flow: text input → LLM response → stored in DynamoDB.
 
 ---

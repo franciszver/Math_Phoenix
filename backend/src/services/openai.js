@@ -3,6 +3,7 @@
  * Centralized configuration for OpenAI client
  */
 
+import '../config/env.js'; // Load environment variables first
 import OpenAI from 'openai';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';

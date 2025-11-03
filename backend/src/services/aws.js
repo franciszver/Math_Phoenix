@@ -3,6 +3,7 @@
  * Centralized configuration for AWS SDK clients
  */
 
+import '../config/env.js'; // Load environment variables first
 import { S3Client } from '@aws-sdk/client-s3';
 import { TextractClient } from '@aws-sdk/client-textract';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
