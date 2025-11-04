@@ -296,7 +296,8 @@ export async function generateTutorResponse(context) {
     category,
     studentResponse,
     conversationHistory = [],
-    shouldProvideHint = false
+    shouldProvideHint = false,
+    correctionContext = null
   } = context;
 
   // Build conversation history for context
@@ -306,6 +307,14 @@ export async function generateTutorResponse(context) {
       content: SYSTEM_PROMPT
     }
   ];
+
+  // Add correction context if provided (must be before problem context)
+  if (correctionContext && correctionContext.originalText && correctionContext.correctedText) {
+    messages.push({
+      role: 'system',
+      content: `IMPORTANT: The problem text was incorrectly read from the image. The original text was "${correctionContext.originalText}" but the correct text from the image is "${correctionContext.correctedText}". Please acknowledge this correction naturally and seamlessly in your response, then continue guiding the student with the correct problem. Make it encouraging and don't make the student feel bad about the error.`
+    });
+  }
 
   // Add problem context
   messages.push({

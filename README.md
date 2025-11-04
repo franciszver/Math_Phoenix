@@ -99,6 +99,34 @@ Math_Phoenix/
   - Body: `{ message: "student response" }`
   - Returns: Tutor response, conversation context
 
+## 🔍 Image Verification System
+
+**Feature:** Automatic verification and correction of image-based math problems.
+
+**How it works:**
+- When a student uploads an image, the system extracts text using OCR (Textract → Vision fallback)
+- The OCR confidence score is stored with the problem (0-1 scale)
+- For problems with low OCR confidence (< 0.8 or missing), the system automatically verifies the problem text against the image after every tutor response
+- If a mismatch is detected (e.g., "1+1" was read instead of "1+12"), the system:
+  1. Automatically corrects the problem text
+  2. Re-processes the problem (updates LaTeX, category, difficulty)
+  3. Re-generates the tutor response with a natural correction acknowledgment
+  4. Updates the session with the corrected problem
+
+**Benefits:**
+- **Redundancy**: Catches OCR errors that might have been missed initially
+- **Accuracy**: Ensures students work with the correct problem throughout the session
+- **Seamless UX**: Corrections are acknowledged naturally by the tutor without disrupting the conversation flow
+- **Smart Optimization**: Only verifies when OCR confidence is low, reducing unnecessary API calls
+
+**Verification Conditions:**
+- Only runs for image-based problems (has `image_key`)
+- Only verifies if the problem is still active (student hasn't moved to a new problem)
+- Skips verification if OCR confidence is high (≥ 0.8), saving API costs
+- Gracefully degrades on errors (verification failures don't break the conversation)
+
+**Example:** If OCR reads "1+1" with low confidence, verification after the first tutor response catches the error and corrects it to "1+12", allowing the tutor to guide the student with the correct problem.
+
 ## 📊 Phase 3: Monitoring & ML Data Collection
 
 ### CloudWatch-Ready Logging & Metrics

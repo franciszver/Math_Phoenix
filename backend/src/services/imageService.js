@@ -5,7 +5,7 @@
 
 import '../config/env.js';
 import { s3Client, textractClient } from './aws.js';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { DetectDocumentTextCommand } from '@aws-sdk/client-textract';
 import { openai } from './openai.js';
 import { createLogger } from '../utils/logger.js';
@@ -224,6 +224,130 @@ export async function extractTextWithVision(imageBuffer) {
 
     logger.error('Vision extraction failed:', error);
     throw new OpenAIError('Failed to extract text using Vision API', error);
+  }
+}
+
+/**
+ * Download image from S3
+ * @param {string} imageKey - S3 object key
+ * @returns {Promise<Buffer|null>} Image buffer or null if download fails
+ */
+export async function downloadImageFromS3(imageKey) {
+  if (!imageKey) {
+    logger.warn('No image key provided for download');
+    return null;
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: imageKey
+    });
+
+    const response = await s3Client.send(command);
+    
+    // Convert stream to buffer
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    logger.debug(`Image downloaded from S3: ${imageKey} (${buffer.length} bytes)`);
+    return buffer;
+  } catch (error) {
+    logger.error('Error downloading image from S3:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify problem text against image using Vision API
+ * @param {Buffer} imageBuffer - Image buffer
+ * @param {string} currentProblemText - Current problem text to verify
+ * @returns {Promise<Object>} Verification result with matches, correctText, and confidence
+ */
+export async function verifyProblemTextAgainstImage(imageBuffer, currentProblemText) {
+  const startTime = Date.now();
+  
+  if (!imageBuffer || !currentProblemText) {
+    logger.warn('Missing image buffer or problem text for verification');
+    return { matches: true, correctText: null, confidence: 0 };
+  }
+
+  try {
+    // Convert buffer to base64
+    const base64Image = imageBuffer.toString('base64');
+
+    const prompt = `Does the text "${currentProblemText}" accurately represent what you see in this image? 
+
+If the text matches exactly, respond with: "MATCHES"
+
+If the text does NOT match, respond with ONLY the correct text from the image. Do not include any explanation, just the correct text.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/png;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 200,
+      temperature: 0.1 // Low temperature for accurate verification
+    });
+
+    const latency = Date.now() - startTime;
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    // Check if response indicates a match
+    const matches = responseText.toUpperCase() === 'MATCHES' || 
+                    responseText.toLowerCase() === 'matches' ||
+                    (responseText.toLowerCase() === currentProblemText.toLowerCase());
+
+    if (matches) {
+      logger.debug(`Image verification: Text matches image (latency: ${latency}ms)`);
+      return {
+        matches: true,
+        correctText: null,
+        confidence: 0.9,
+        latency
+      };
+    } else {
+      // Response contains the correct text
+      const correctText = responseText.trim();
+      logger.info(`Image verification: Mismatch detected. Original: "${currentProblemText.substring(0, 50)}..." → Correct: "${correctText.substring(0, 50)}..."`);
+      
+      return {
+        matches: false,
+        correctText,
+        confidence: 0.9,
+        latency
+      };
+    }
+  } catch (error) {
+    const latency = Date.now() - startTime;
+    logger.error('Error verifying problem text against image:', error);
+    
+    // Graceful degradation: return matches=true to avoid breaking conversation
+    return {
+      matches: true,
+      correctText: null,
+      confidence: 0,
+      latency,
+      error: error.message
+    };
   }
 }
 

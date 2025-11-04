@@ -110,6 +110,10 @@ export async function submitProblemHandler(req, res, next) {
     if (imageUrl) {
       processedProblem.image_url = imageUrl;
       processedProblem.image_key = imageKey;
+      // Store OCR confidence for verification optimization
+      if (ocrResult && ocrResult.confidence !== undefined) {
+        processedProblem.ocr_confidence = ocrResult.confidence;
+      }
     }
 
     // Add problem to session
