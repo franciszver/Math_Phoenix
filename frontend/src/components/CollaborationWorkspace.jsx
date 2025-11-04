@@ -22,7 +22,7 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [canvasState, setCanvasState] = useState(null);
-  const [studentCanDraw, setStudentCanDraw] = useState(true);
+  const [studentCanDraw, setStudentCanDraw] = useState(false); // Disabled by default
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(new Date().toISOString());
@@ -84,12 +84,20 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
           });
         }
 
-        if (updates.canvas_state) {
-          setCanvasState(updates.canvas_state);
+        if (updates.canvas_state !== undefined) {
+          const newStateJson = JSON.stringify(updates.canvas_state);
+          const currentStateJson = canvasState ? JSON.stringify(canvasState) : null;
+          
+          // Always update for operation-based syncing (component handles deduplication)
+          // Only skip if JSON strings are identical
+          if (newStateJson !== currentStateJson) {
+            setCanvasState(updates.canvas_state);
+          }
         }
 
         if (updates.student_can_draw !== undefined) {
-          setStudentCanDraw(updates.student_can_draw);
+          // Explicitly check for true since default is false
+          setStudentCanDraw(updates.student_can_draw === true);
         }
 
         if (updates.status && updates.status !== 'active') {
@@ -106,7 +114,7 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
         }
         // If no new messages, keep current lastUpdateTime (don't update to avoid skipping messages)
       } catch (error) {
-        console.error('Error polling updates:', error);
+        // Silently handle polling errors
       }
     };
 
@@ -129,8 +137,10 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
       const data = await getCollaborationSession(collabSessionId);
       setSession(data);
       setMessages(data.messages || []);
-      setCanvasState(data.canvas_state);
-      setStudentCanDraw(data.student_can_draw !== false);
+      // Initialize with empty operations array if no state exists
+      setCanvasState(data.canvas_state || { operations: [], version: 0 });
+      // student_can_draw defaults to false, so explicitly check for true
+      setStudentCanDraw(data.student_can_draw === true);
       
       // Set lastUpdateTime to the timestamp of the last message, or current time if no messages
       const messages = data.messages || [];
@@ -145,7 +155,6 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
         lastUpdateTimeRef.current = timestamp;
       }
     } catch (error) {
-      console.error('Error loading collaboration session:', error);
       setError('Failed to load collaboration session');
     } finally {
       setIsLoading(false);
@@ -173,7 +182,6 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
         lastUpdateTimeRef.current = timestamp;
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       setError('Failed to send message');
     }
   };
@@ -190,7 +198,7 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
       try {
         await updateCollaborationCanvas(collabSessionId, newCanvasState);
       } catch (error) {
-        console.error('Error updating canvas:', error);
+        // Silently handle canvas update errors
       }
     }, 500);
   };
@@ -201,7 +209,6 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
       await updateDrawingPermission(collabSessionId, newPermission);
       setStudentCanDraw(newPermission);
     } catch (error) {
-      console.error('Error updating drawing permission:', error);
       setError('Failed to update drawing permission');
     }
   };
@@ -216,8 +223,7 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
           navigate('/');
         }
       } catch (error) {
-        console.error('Error ending collaboration:', error);
-        // Navigate anyway
+        // Navigate anyway even if ending fails
         if (actualIsTeacher) {
           navigate('/dashboard');
         } else {
@@ -268,8 +274,9 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
               className="drawing-permission-btn"
               onClick={handleToggleDrawingPermission}
               disabled={!isActive}
+              title={studentCanDraw ? 'Click to disable student drawing' : 'Click to enable student drawing'}
             >
-              {studentCanDraw ? '🔒 Disable Drawing' : '🔓 Enable Drawing'}
+              {studentCanDraw ? '🔒 Disable Student Drawing' : '🔓 Enable Student Drawing'}
             </button>
           )}
           <button className="leave-btn" onClick={handleLeave}>
@@ -312,3 +319,5 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
   );
 }
 
+// Ensure export is available
+export default CollaborationWorkspace;

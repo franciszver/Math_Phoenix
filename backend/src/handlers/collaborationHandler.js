@@ -112,12 +112,12 @@ export async function updateCanvasHandler(req, res, next) {
     }
 
     const updatedSession = await updateCanvasState(collabSessionId, canvasState);
-
     res.json({
       success: true,
       canvas_state: updatedSession.canvas_state
     });
   } catch (error) {
+    logger.error(`Error updating canvas for ${collabSessionId}:`, error);
     next(error);
   }
 }

@@ -56,7 +56,7 @@ export async function createCollaborationSession(studentSessionId, selectedProbl
     expires_at: Math.floor(expiresAt.getTime() / 1000), // Unix timestamp for TTL
     messages: [],
     canvas_state: null,
-    student_can_draw: true,
+    student_can_draw: false, // Disabled by default - teacher can enable it
     status: 'active'
   };
 
@@ -188,9 +188,10 @@ export async function addCollaborationMessage(collabSessionId, speaker, message,
  * @returns {Promise<Object>} Updated collaboration session
  */
 export async function updateCanvasState(collabSessionId, canvasState) {
-  return await updateCollaborationSession(collabSessionId, {
+  const result = await updateCollaborationSession(collabSessionId, {
     canvas_state: canvasState
   });
+  return result;
 }
 
 /**
