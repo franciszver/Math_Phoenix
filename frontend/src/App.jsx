@@ -4,6 +4,7 @@ import { SessionEntry } from './components/SessionEntry';
 import { Chat } from './components/Chat';
 import { DashboardLogin } from './components/DashboardLogin';
 import { Dashboard } from './components/Dashboard';
+import { DashboardLink } from './components/DashboardLink';
 import { createSession, resumeSession, getSession, dashboardLogin } from './services/api';
 import './App.css';
 
@@ -23,6 +24,21 @@ function App() {
   const [hasActiveProblem, setHasActiveProblem] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [prefilledSessionCode, setPrefilledSessionCode] = useState(null);
+
+  // Clear localStorage on page load to prevent accidental session reuse
+  useEffect(() => {
+    if (!isDashboardRoute) {
+      localStorage.removeItem('mathPhoenixSession');
+      
+      // Check URL for session code to pre-fill (but don't auto-load)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlSessionCode = urlParams.get('session');
+      if (urlSessionCode) {
+        setPrefilledSessionCode(urlSessionCode);
+      }
+    }
+  }, [isDashboardRoute]);
 
   // Update route when pathname changes
   useEffect(() => {
@@ -54,6 +70,22 @@ function App() {
     setIsDashboardRoute(false);
   };
 
+  // Handle quit/log off from chat session
+  const handleQuitSession = () => {
+    // Clear everything
+    setSessionCode(null);
+    setInitialMessages([]);
+    setHasActiveProblem(false);
+    setError(null);
+    localStorage.removeItem('mathPhoenixSession');
+    
+    // Clear URL parameter
+    window.history.pushState({}, '', '/');
+    
+    // Return to SessionEntry (still consented, but no session)
+    // Note: hasConsented stays true, so user goes to SessionEntry
+  };
+
   // Render dashboard if on dashboard route
   if (isDashboardRoute) {
     if (!dashboardToken) {
@@ -61,24 +93,6 @@ function App() {
     }
     return <Dashboard token={dashboardToken} onLogout={handleDashboardLogout} onError={setError} />;
   }
-
-  // Check for session code in URL or localStorage
-  useEffect(() => {
-    // Skip if on dashboard route
-    if (isDashboardRoute) return;
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlSessionCode = urlParams.get('session');
-    
-    if (urlSessionCode) {
-      loadSession(urlSessionCode);
-    } else {
-      const savedSession = localStorage.getItem('mathPhoenixSession');
-      if (savedSession) {
-        loadSession(savedSession);
-      }
-    }
-  }, [isDashboardRoute]);
 
   const loadSession = async (code) => {
     setIsLoading(true);
@@ -137,6 +151,8 @@ function App() {
       const session = await createSession();
       setSessionCode(session.session_code);
       setInitialMessages([]);
+      setHasActiveProblem(false);
+      // Store session in localStorage for current session use
       localStorage.setItem('mathPhoenixSession', session.session_code);
       
       // Update URL
@@ -159,13 +175,17 @@ function App() {
 
   if (!sessionCode && !isLoading) {
     return (
-      <div className="app-container">
-        <SessionEntry
-          onSessionSubmit={handleSessionSubmit}
-          onNewSession={handleNewSession}
-        />
-        {error && <div className="error-banner">{error}</div>}
-      </div>
+      <>
+        <div className="app-container">
+          <SessionEntry
+            onSessionSubmit={handleSessionSubmit}
+            onNewSession={handleNewSession}
+            prefilledCode={prefilledSessionCode}
+          />
+          {error && <div className="error-banner">{error}</div>}
+        </div>
+        <DashboardLink />
+      </>
     );
   }
 
@@ -185,6 +205,7 @@ function App() {
         initialMessages={initialMessages}
         hasActiveProblem={hasActiveProblem}
         onError={setError}
+        onQuit={handleQuitSession}
       />
     </div>
   );

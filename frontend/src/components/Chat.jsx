@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ProblemInput } from './ProblemInput';
+import { ChatMenu } from './ChatMenu';
+import { SessionCodeModal } from './SessionCodeModal';
 import { sendChatMessage, submitProblem } from '../services/api';
 import './Chat.css';
 
@@ -9,11 +11,12 @@ import './Chat.css';
  * Chat Component
  * Main chat interface for the math tutoring session
  */
-export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = false, onError }) {
+export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = false, onError, onQuit }) {
   const [messages, setMessages] = useState(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentProblem, setCurrentProblem] = useState(null);
   const [canSubmitProblem, setCanSubmitProblem] = useState(!hasActiveProblem);
+  const [showSessionCodeModal, setShowSessionCodeModal] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Load session data on mount
@@ -127,7 +130,21 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
             )}
           </div>
         )}
+        {sessionCode && (
+          <ChatMenu
+            sessionCode={sessionCode}
+            onShowSessionCode={() => setShowSessionCodeModal(true)}
+            onQuit={onQuit}
+          />
+        )}
       </div>
+
+      {showSessionCodeModal && (
+        <SessionCodeModal
+          sessionCode={sessionCode}
+          onClose={() => setShowSessionCodeModal(false)}
+        />
+      )}
 
       <div className="chat-messages">
         {messages.length === 0 && canSubmitProblem && (

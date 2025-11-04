@@ -118,6 +118,12 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [ ] Implement **step visualization animations**.
 - [ ] Add **voice interface** (speech‑to‑text + text‑to‑speech).
 - [ ] Replace rule‑based difficulty with **ML classifier** trained on collected data.
+- [ ] Add **streak graphic** feature:
+  - Visual streak meter that builds with continuous correct answers
+  - Maximum streak cap of 5 consecutive correct answers
+  - Streak resets to zero when student fails and triggers a hint
+  - Any triggered hint brings the streak count back to zero
+  - Student restarts with zero streak meter after reset
 
 ---
 

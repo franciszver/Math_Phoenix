@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './SessionEntry.css';
 
 /**
  * Session Entry Component
  * Allows user to enter a session code to resume a session
  */
-export function SessionEntry({ onSessionSubmit, onNewSession }) {
-  const [sessionCode, setSessionCode] = useState('');
+export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = null }) {
+  const [sessionCode, setSessionCode] = useState(prefilledCode || '');
   const [error, setError] = useState('');
+
+  // Update session code if prefilledCode changes
+  useEffect(() => {
+    if (prefilledCode) {
+      setSessionCode(prefilledCode);
+    }
+  }, [prefilledCode]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

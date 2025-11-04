@@ -12,19 +12,25 @@
   background: #4CAF50;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .chat-header h2 {
   margin: 0;
   font-size: 1.5rem;
+  flex: 1;
 }
 
 .session-info {
   display: flex;
   gap: 1rem;
-  margin-top: 0.5rem;
   font-size: 0.875rem;
   opacity: 0.9;
+  align-items: center;
 }
 
 .problem-info {
