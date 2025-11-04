@@ -83,6 +83,42 @@ Math_Phoenix/
 - **Frontend**: Vite + React (runs on http://localhost:5173 by default)
 - **Backend**: Express (runs on http://localhost:3001 by default)
 
+### Generating Demo Data
+
+To populate the teacher dashboard with realistic demo data for presentations or testing:
+
+```bash
+cd backend
+npm run generate-demo-data
+```
+
+**Options:**
+- `--count=N` - Number of sessions to generate (default: 20)
+- `--clear` - Clear existing data before generating (optional)
+- `--days=N` - Number of days to spread sessions over (default: 7)
+
+**Examples:**
+```bash
+# Generate 20 sessions spread over 7 days (default)
+npm run generate-demo-data
+
+# Generate 30 sessions, clear existing data first
+npm run generate-demo-data -- --count=30 --clear
+
+# Generate 15 sessions spread over 14 days
+npm run generate-demo-data -- --count=15 --days=14
+```
+
+**What it generates:**
+- Multiple sessions with varied creation dates
+- 1-5 problems per session across all categories (arithmetic, algebra, geometry, word, multi-step)
+- Realistic conversation flows with 2-8 steps per problem
+- Proper hint usage tracking and streak meter data
+- Transcript entries for each conversation turn
+- Mix of completed and in-progress problems
+
+**Note:** Requires AWS credentials and DynamoDB table to be configured. The script uses the same AWS configuration as the main application.
+
 ## 📡 API Endpoints
 
 ### Sessions
