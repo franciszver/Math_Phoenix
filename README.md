@@ -226,6 +226,48 @@ npm run generate-demo-data -- --count=15 --days=14
 
 **Note:** ML data table creation is handled via infrastructure scripts. Collection is non-critical (errors logged but don't fail requests).
 
+## 👥 Teacher-Student Collaboration Feature
+
+**Feature:** Real-time collaboration workspace for teachers to help students with low confidence.
+
+**How it works:**
+- Teachers can see students with confidence < 1.0 in the dashboard
+- Teacher clicks "Help Student" button on a problem card
+- System presents 3 similar problems using hybrid approach:
+  - **Embedding-based similarity**: Finds similar problems from database using OpenAI embeddings
+  - **LLM generation**: Generates new similar problems if database has few matches
+  - Teacher selects one problem to work on
+- Teacher and student join a collaboration workspace with:
+  - **Chat window**: Real-time messaging (polling-based, 2-3 second intervals)
+  - **Drawing canvas**: Shared whiteboard using Fabric.js with pen, shapes, and basic tools
+  - **Teacher controls**: Can enable/disable student drawing permission
+- Student session is blocked until they join the collaboration
+- Collaboration sessions stored in DynamoDB with 30-day TTL
+
+**Problem Similarity Matching:**
+- Uses hybrid approach: OpenAI embeddings (`text-embedding-3-small`) + LLM generation
+- Embeddings generated on-demand (lazy loading)
+- Similarity scores shown for database matches
+- LLM-generated problems labeled as "Generated"
+- **Future enhancement**: Expand problem database with Kaggle/GSM8K datasets for better similarity matching
+
+**Technical Details:**
+- **Drawing Technology**: HTML5 Canvas with Fabric.js (pen + basic shapes)
+- **Real-time Updates**: Polling (2-3 second intervals) - simpler than WebSocket for turn-taking
+- **Canvas Sync**: Debounced updates (1-2 seconds after drawing stops)
+- **Storage**: Same DynamoDB table with 30-day TTL
+- **Access**: Both teacher and student can access via `/collaboration/:collabSessionId` route
+
+**API Endpoints:**
+- `GET /api/dashboard/sessions/:studentSessionId/similar-problems` - Get similar problems
+- `POST /api/dashboard/sessions/:studentSessionId/collaboration/start` - Start collaboration
+- `GET /api/collaboration/:collabSessionId` - Get collaboration details
+- `POST /api/collaboration/:collabSessionId/message` - Send chat message
+- `POST /api/collaboration/:collabSessionId/canvas` - Update canvas state
+- `GET /api/collaboration/:collabSessionId/updates` - Poll for updates
+- `PUT /api/collaboration/:collabSessionId/drawing-permission` - Toggle drawing permission
+- `POST /api/collaboration/:collabSessionId/end` - End collaboration
+
 ---
 
 ## 🔒 Rate Limiting

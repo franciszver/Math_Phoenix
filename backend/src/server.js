@@ -13,8 +13,18 @@ import {
   getAllSessionsHandler, 
   getSessionDetailsHandler,
   updateProblemTagsHandler,
-  deleteSessionHandler 
+  deleteSessionHandler,
+  getSimilarProblemsHandler
 } from './handlers/dashboardHandler.js';
+import {
+  startCollaborationHandler,
+  getCollaborationHandler,
+  sendCollaborationMessageHandler,
+  updateCanvasHandler,
+  getCollaborationUpdatesHandler,
+  updateDrawingPermissionHandler,
+  endCollaborationHandler
+} from './handlers/collaborationHandler.js';
 import { requireDashboardAuth } from './middleware/auth.js';
 
 const app = express();
@@ -26,8 +36,9 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body size limit for canvas operations (up to 10MB)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -54,8 +65,18 @@ app.post('/api/dashboard/login', loginHandler);
 app.get('/api/dashboard/stats/aggregate', requireDashboardAuth, getAggregateStatsHandler);
 app.get('/api/dashboard/sessions', requireDashboardAuth, getAllSessionsHandler);
 app.get('/api/dashboard/sessions/:code', requireDashboardAuth, getSessionDetailsHandler);
+app.get('/api/dashboard/sessions/:studentSessionId/similar-problems', requireDashboardAuth, getSimilarProblemsHandler);
 app.put('/api/dashboard/sessions/:code/problems/:problemId', requireDashboardAuth, updateProblemTagsHandler);
 app.delete('/api/dashboard/sessions/:code', requireDashboardAuth, deleteSessionHandler);
+
+// Collaboration routes
+app.post('/api/dashboard/sessions/:studentSessionId/collaboration/start', requireDashboardAuth, startCollaborationHandler);
+app.get('/api/collaboration/:collabSessionId', getCollaborationHandler);
+app.post('/api/collaboration/:collabSessionId/message', sendCollaborationMessageHandler);
+app.post('/api/collaboration/:collabSessionId/canvas', updateCanvasHandler);
+app.get('/api/collaboration/:collabSessionId/updates', getCollaborationUpdatesHandler);
+app.put('/api/collaboration/:collabSessionId/drawing-permission', updateDrawingPermissionHandler);
+app.post('/api/collaboration/:collabSessionId/end', endCollaborationHandler);
 
 // 404 handler (must come before error handler)
 app.use((req, res) => {

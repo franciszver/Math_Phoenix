@@ -9,14 +9,24 @@ import { StreakMeter } from './StreakMeter';
 import { MCQuestion } from './MCQuestion';
 import { TransferProblem } from './TransferProblem';
 import { Toast } from './Toast';
-import { sendChatMessage, submitProblem, selectProblem } from '../services/api';
+import { CollaborationBlockingModal } from './CollaborationBlockingModal';
+import { sendChatMessage, submitProblem, selectProblem, getSession } from '../services/api';
 import './Chat.css';
 
 /**
  * Chat Component
  * Main chat interface for the math tutoring session
  */
-export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = false, onError, onQuit }) {
+export function Chat({ 
+  sessionCode, 
+  initialMessages = [], 
+  hasActiveProblem = false, 
+  onError, 
+  onQuit,
+  collaborationRequested = false,
+  collaborationSessionId = null,
+  onCollaborationRequested = null // Callback to update parent state
+}) {
   const [messages, setMessages] = useState(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [currentProblem, setCurrentProblem] = useState(null);
@@ -44,6 +54,33 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
       }
     }
   }, [sessionCode, initialMessages, hasActiveProblem]);
+
+  // Poll session for collaboration requests
+  useEffect(() => {
+    if (!sessionCode || collaborationRequested) return; // Stop polling if already requested
+
+    const checkCollaborationRequest = async () => {
+      try {
+        const session = await getSession(sessionCode);
+        if (session.collaboration_requested && !collaborationRequested) {
+          // Update parent state to trigger modal
+          if (onCollaborationRequested) {
+            onCollaborationRequested({
+              collaboration_requested: true,
+              collaboration_session_id: session.collaboration_session_id
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking collaboration request:', error);
+      }
+    };
+
+    // Poll every 3 seconds
+    const pollInterval = setInterval(checkCollaborationRequest, 3000);
+    
+    return () => clearInterval(pollInterval);
+  }, [sessionCode, collaborationRequested, onCollaborationRequested]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -423,8 +460,17 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
 
   return (
     <div className="chat-container">
-      {/* Toast notification for streak feedback */}
-      {toast && (
+      {/* Collaboration Blocking Modal */}
+      {collaborationRequested && (
+        <CollaborationBlockingModal
+          collaborationSessionId={collaborationSessionId}
+        />
+      )}
+
+      {/* Disable interactions when collaboration is requested */}
+      <div className={collaborationRequested ? 'chat-disabled' : ''}>
+        {/* Toast notification for streak feedback */}
+        {toast && (
         <Toast
           message={toast.message}
           type={toast.type}
@@ -561,6 +607,7 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
             />
           </>
         )}
+      </div>
       </div>
     </div>
   );

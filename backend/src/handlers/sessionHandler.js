@@ -28,7 +28,9 @@ export async function getSessionHandler(req, res, next) {
       created_at: session.created_at,
       problems: session.problems || [],
       current_problem_id: session.current_problem_id || null,
-      transcript: session.transcript || []
+      transcript: session.transcript || [],
+      collaboration_requested: session.collaboration_requested || false,
+      collaboration_session_id: session.collaboration_session_id || null
     });
   } catch (error) {
     next(error);
@@ -56,7 +58,9 @@ export async function createOrGetSessionHandler(req, res, next) {
           created_at: session.created_at,
           problems: session.problems || [],
           current_problem_id: session.current_problem_id || null,
-          transcript: session.transcript || []
+          transcript: session.transcript || [],
+          collaboration_requested: session.collaboration_requested || false,
+          collaboration_session_id: session.collaboration_session_id || null
         });
       } catch (error) {
         if (error instanceof NotFoundError) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getAllSessions, getSessionDetails, updateProblemTags, deleteSession } from '../services/api';
+import { getAllSessions, getSessionDetails, updateProblemTags, deleteSession, getSimilarProblems, startCollaboration } from '../services/api';
+import { SimilarProblemsModal } from './SimilarProblemsModal';
 import './SessionListView.css';
 
 /**
@@ -207,6 +208,7 @@ export function SessionListView({ token, onError, initialSelectedSession, onSess
                     problem={problem}
                     sessionCode={sessionDetails.session_code}
                     onUpdateTags={handleUpdateTags}
+                    token={token}
                   />
                 ))}
               </div>
@@ -224,13 +226,19 @@ export function SessionListView({ token, onError, initialSelectedSession, onSess
  * Problem Card Component
  * Displays problem information and allows tag editing
  */
-function ProblemCard({ problem, sessionCode, onUpdateTags }) {
+function ProblemCard({ problem, sessionCode, onUpdateTags, token }) {
   const [editingCategory, setEditingCategory] = useState(false);
   const [editingDifficulty, setEditingDifficulty] = useState(false);
   const [expandedMC, setExpandedMC] = useState(false);
   const [category, setCategory] = useState(problem.category || problem.problem_info?.category || 'other');
   const [difficulty, setDifficulty] = useState(problem.difficulty || problem.problem_info?.difficulty || 'unknown');
+  const [showSimilarProblems, setShowSimilarProblems] = useState(false);
+  const [similarProblems, setSimilarProblems] = useState([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
   const assessment = problem.learning_assessment;
+  
+  // Check if student needs help (confidence < 1.0)
+  const needsHelp = assessment && assessment.confidence !== null && assessment.confidence < 1.0;
 
   const categories = ['arithmetic', 'algebra', 'geometry', 'word', 'multi-step', 'other'];
   const difficulties = ['easy', 'medium', 'hard', 'unknown'];
@@ -245,6 +253,38 @@ function ProblemCard({ problem, sessionCode, onUpdateTags }) {
     setDifficulty(newDifficulty);
     setEditingDifficulty(false);
     await onUpdateTags(sessionCode, problem.problem_id, null, newDifficulty);
+  };
+
+  const handleHelpClick = async () => {
+    setLoadingSimilar(true);
+    setShowSimilarProblems(true);
+
+    try {
+      const response = await getSimilarProblems(sessionCode, problem.problem_id, token);
+      setSimilarProblems(response.problems || []);
+    } catch (error) {
+      console.error('Error fetching similar problems:', error);
+      setSimilarProblems([]);
+    } finally {
+      setLoadingSimilar(false);
+    }
+  };
+
+  const handleSelectSimilarProblem = async (selectedProblem) => {
+    try {
+      const response = await startCollaboration(
+        sessionCode,
+        selectedProblem.problemText,
+        problem.problem_id,
+        token
+      );
+
+      // Navigate to collaboration workspace
+      window.location.href = response.collaboration_url || `/collaboration/${response.collaboration_session_id}`;
+    } catch (error) {
+      console.error('Error starting collaboration:', error);
+      alert('Failed to start collaboration. Please try again.');
+    }
   };
 
   return (
@@ -304,6 +344,24 @@ function ProblemCard({ problem, sessionCode, onUpdateTags }) {
           <span className="tag-value">{problem.hints_used || 0}</span>
         </div>
       </div>
+
+      {/* Help Button */}
+      {needsHelp && (
+        <div className="problem-help-section">
+          <button className="help-btn" onClick={handleHelpClick}>
+            🆘 Help Student
+          </button>
+        </div>
+      )}
+
+      {/* Similar Problems Modal */}
+      <SimilarProblemsModal
+        isOpen={showSimilarProblems}
+        onClose={() => setShowSimilarProblems(false)}
+        onSelect={handleSelectSimilarProblem}
+        isLoading={loadingSimilar}
+        problems={similarProblems}
+      />
 
       {/* Learning Assessment Display */}
       {assessment && (

@@ -214,5 +214,100 @@ export async function deleteSession(sessionCode, token) {
   return response.data;
 }
 
+/**
+ * Collaboration API Functions
+ */
+
+/**
+ * Get similar problems for a problem in a session
+ */
+export async function getSimilarProblems(studentSessionId, problemId, token) {
+  const response = await api.get(
+    `/api/dashboard/sessions/${studentSessionId}/similar-problems?problemId=${problemId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Start a collaboration session
+ */
+export async function startCollaboration(studentSessionId, problemText, selectedProblemId, token) {
+  const response = await api.post(
+    `/api/dashboard/sessions/${studentSessionId}/collaboration/start`,
+    {
+      problemText,
+      selectedProblemId
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Get collaboration session details
+ */
+export async function getCollaborationSession(collabSessionId) {
+  const response = await api.get(`/api/collaboration/${collabSessionId}`);
+  return response.data;
+}
+
+/**
+ * Send a message in collaboration
+ */
+export async function sendCollaborationMessage(collabSessionId, message, speaker) {
+  const response = await api.post(`/api/collaboration/${collabSessionId}/message`, {
+    message,
+    speaker
+  });
+  return response.data;
+}
+
+/**
+ * Update collaboration canvas state
+ */
+export async function updateCollaborationCanvas(collabSessionId, canvasState) {
+  const response = await api.post(`/api/collaboration/${collabSessionId}/canvas`, {
+    canvasState
+  });
+  return response.data;
+}
+
+/**
+ * Poll for collaboration updates
+ */
+export async function pollCollaborationUpdates(collabSessionId, sinceTimestamp) {
+  const response = await api.get(
+    `/api/collaboration/${collabSessionId}/updates?since=${encodeURIComponent(sinceTimestamp)}`
+  );
+  return response.data;
+}
+
+/**
+ * Update drawing permission
+ */
+export async function updateDrawingPermission(collabSessionId, studentCanDraw) {
+  const response = await api.put(`/api/collaboration/${collabSessionId}/drawing-permission`, {
+    student_can_draw: studentCanDraw
+  });
+  return response.data;
+}
+
+/**
+ * End collaboration
+ */
+export async function endCollaboration(collabSessionId) {
+  const response = await api.post(`/api/collaboration/${collabSessionId}/end`);
+  return response.data;
+}
+
 export default api;
 

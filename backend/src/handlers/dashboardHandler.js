@@ -6,6 +6,7 @@ import { generateDashboardToken } from '../middleware/auth.js';
 import { getAggregateStats, getAllSessionsWithStats, getSessionDetails } from '../services/dashboardService.js';
 import { getSession, updateSession, deleteSession } from '../services/sessionService.js';
 import { collectMLData } from '../services/mlDataService.js';
+import { getSimilarProblemOptions } from '../services/problemSimilarityService.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 
@@ -179,6 +180,48 @@ export async function deleteSessionHandler(req, res, next) {
     res.json({
       success: true,
       message: 'Session deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/dashboard/sessions/:studentSessionId/similar-problems
+ * Get similar problems for a specific problem in a session
+ */
+export async function getSimilarProblemsHandler(req, res, next) {
+  try {
+    const { studentSessionId } = req.params;
+    const { problemId } = req.query;
+
+    if (!problemId) {
+      throw new ValidationError('problemId query parameter is required');
+    }
+
+    // Get the student session
+    const session = await getSession(studentSessionId);
+    
+    // Find the problem
+    const problem = session.problems?.find(p => p.problem_id === problemId);
+    if (!problem) {
+      throw new NotFoundError('Problem');
+    }
+
+    // Get similar problem options
+    const similarProblems = await getSimilarProblemOptions(problem);
+
+    // Format response
+    const formattedProblems = similarProblems.map(p => ({
+      problemText: p.problemText,
+      similarity: p.similarity ? Math.round(p.similarity * 100) / 100 : null,
+      source: p.source || (p.generated ? 'generated' : 'database'),
+      generated: p.generated || false
+    }));
+
+    res.json({
+      success: true,
+      problems: formattedProblems
     });
   } catch (error) {
     next(error);

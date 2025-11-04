@@ -288,6 +288,32 @@
   color: #666;
 }
 
+.problem-help-section {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.help-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.help-btn:hover {
+  background-color: #45a049;
+}
+
+.help-btn:active {
+  background-color: #3d8b40;
+}
+
 .learning-assessment-section {
   margin-top: 16px;
   padding: 16px;
