@@ -163,11 +163,27 @@ export async function collectMLData(problem, session, ocrResult = null, teacherO
     return mlDataRecord;
   } catch (error) {
     // Log error but don't fail the main request
-    logger.error('Error collecting ML data', {
-      error: error.message,
-      session_code: session.session_code,
-      problem_id: problem.problem_id
-    });
+    // Check if it's a table not found error
+    const isTableNotFound = error.name === 'ResourceNotFoundException' || 
+                           error.message?.includes('Requested resource not found') ||
+                           error.message?.includes('Cannot do operations on a non-existent table');
+    
+    if (isTableNotFound) {
+      logger.warn('ML data table not found - skipping ML data collection', {
+        table_name: ML_DATA_TABLE,
+        session_code: session.session_code,
+        problem_id: problem.problem_id,
+        hint: 'Run the infrastructure setup script to create the ML data table'
+      });
+    } else {
+      logger.error('Error collecting ML data', {
+        error: error.message,
+        error_name: error.name,
+        error_code: error.code,
+        session_code: session.session_code,
+        problem_id: problem.problem_id
+      });
+    }
     
     // Don't throw - ML data collection is non-critical
     return null;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllSessions, getSessionDetails, updateProblemTags } from '../services/api';
+import { getAllSessions, getSessionDetails, updateProblemTags, deleteSession } from '../services/api';
 import './SessionListView.css';
 
 /**
@@ -63,6 +63,31 @@ export function SessionListView({ token, onError }) {
     }
   };
 
+  const handleDeleteSession = async (sessionCode, e) => {
+    e.stopPropagation(); // Prevent triggering session selection
+    
+    // Confirm deletion
+    if (!window.confirm(`Are you sure you want to delete session ${sessionCode}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteSession(sessionCode, token);
+      
+      // If deleted session was selected, clear selection
+      if (selectedSession === sessionCode) {
+        setSelectedSession(null);
+        setSessionDetails(null);
+      }
+      
+      // Reload sessions list
+      await loadSessions();
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      onError?.(error.response?.data?.error?.message || 'Failed to delete session');
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -90,6 +115,13 @@ export function SessionListView({ token, onError }) {
                 <div className="session-header">
                   <span className="session-code">{session.session_code}</span>
                   <span className="session-date">{formatDate(session.created_at)}</span>
+                  <button
+                    className="delete-session-btn"
+                    onClick={(e) => handleDeleteSession(session.session_code, e)}
+                    title="Delete session"
+                  >
+                    ×
+                  </button>
                 </div>
                 <div className="session-stats">
                   <span>{session.problems_count} problems</span>

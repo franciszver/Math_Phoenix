@@ -38,6 +38,23 @@
   font-weight: 500;
 }
 
+.message-image {
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.message-image img {
+  max-width: 100%;
+  max-height: 400px;
+  width: auto;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
 .message-text {
   line-height: 1.5;
   word-wrap: break-word;

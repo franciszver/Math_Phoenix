@@ -3,7 +3,7 @@
  * Handles text and image problem submissions
  */
 
-import { createSession, getSession, addProblemToSession, addToTranscript } from '../services/sessionService.js';
+import { createSession, getSession, addProblemToSession, addToTranscript, updateSession } from '../services/sessionService.js';
 import { uploadImageToS3, extractTextFromImage } from '../services/imageService.js';
 import { processProblem } from '../services/problemService.js';
 import { generateInitialPrompt } from '../services/socraticEngine.js';
@@ -127,18 +127,36 @@ export async function submitProblemHandler(req, res, next) {
     await addToTranscript(sessionCode, 'student', rawProblemText);
     await addToTranscript(sessionCode, 'tutor', tutorPrompt);
 
-    // Add initial step using addStepToProblem
+    // Add initial step directly to the problem (avoid race condition with DynamoDB eventual consistency)
     const initialStep = {
       tutor_prompt: tutorPrompt,
       student_response: null,
       hint_used: false,
-      progress_made: false
+      progress_made: false,
+      step_number: 1,
+      timestamp: new Date().toISOString()
     };
 
     try {
-      await addStepToProblem(sessionCode, initialStep);
+      // Add step directly to the current problem we already have
+      currentProblem.steps = currentProblem.steps || [];
+      currentProblem.steps.push(initialStep);
+      
+      // Update the session with the step added
+      const updatedProblems = updatedSession.problems.map(p => 
+        p.problem_id === updatedSession.current_problem_id ? currentProblem : p
+      );
+      
+      await updateSession(sessionCode, {
+        problems: updatedProblems
+      });
     } catch (stepError) {
-      logger.error('Error adding initial step, but problem was created:', stepError);
+      logger.error('Error adding initial step, but problem was created:', {
+        error: stepError.message,
+        error_name: stepError.name,
+        session_code: sessionCode,
+        problem_id: currentProblem.problem_id
+      });
       // Continue anyway - problem and transcript are already created
       // The step can be added later or this is just the initial prompt
     }

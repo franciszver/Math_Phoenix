@@ -170,5 +170,17 @@ export async function updateProblemTags(sessionCode, problemId, updates, token) 
   return response.data;
 }
 
+/**
+ * Delete a session
+ */
+export async function deleteSession(sessionCode, token) {
+  const response = await api.delete(`/api/dashboard/sessions/${sessionCode}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return response.data;
+}
+
 export default api;
 

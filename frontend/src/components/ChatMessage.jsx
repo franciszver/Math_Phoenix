@@ -4,9 +4,9 @@ import './ChatMessage.css';
 
 /**
  * Chat Message Component
- * Displays a single message with KaTeX rendering for equations
+ * Displays a single message with KaTeX rendering for equations and image previews
  */
-export function ChatMessage({ message, speaker, latex }) {
+export function ChatMessage({ message, speaker, latex, imageUrl }) {
   // Render message with LaTeX support
   const renderMessageWithLatex = (text) => {
     if (!text) return '';
@@ -77,9 +77,23 @@ export function ChatMessage({ message, speaker, latex }) {
       <div className="message-content">
         {speaker === 'tutor' && <div className="message-label">Tutor</div>}
         {speaker === 'student' && <div className="message-label">You</div>}
-        <div className="message-text">
-          {renderMessageWithLatex(message)}
-        </div>
+        {imageUrl && (
+          <div className="message-image">
+            <img 
+              src={imageUrl} 
+              alt="Uploaded math problem" 
+              onError={(e) => {
+                // Fallback if image fails to load
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        {message && message.trim() && (
+          <div className="message-text">
+            {renderMessageWithLatex(message)}
+          </div>
+        )}
       </div>
     </div>
   );

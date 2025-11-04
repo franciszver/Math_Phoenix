@@ -44,11 +44,18 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
     setCanSubmitProblem(false);
 
     try {
-      // Add student message immediately
+      // Create local preview URL for immediate display
+      let imagePreviewUrl = null;
+      if (imageFile) {
+        imagePreviewUrl = URL.createObjectURL(imageFile);
+      }
+
+      // Add student message immediately with image preview
       const studentMessage = {
         speaker: 'student',
-        message: text || `[Image: ${imageFile?.name}]`,
-        timestamp: new Date().toISOString()
+        message: text || (imageFile ? `Image: ${imageFile.name}` : ''),
+        timestamp: new Date().toISOString(),
+        imageUrl: imagePreviewUrl || null
       };
       setMessages(prev => [...prev, studentMessage]);
 
@@ -63,6 +70,10 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
         normalizedLatex: response.problem_info?.normalized_latex || null
       };
       setCurrentProblem(problemInfo);
+
+      // Note: We keep the local preview URL since S3 URLs are private
+      // In the future, we could generate presigned URLs on the backend for sharing
+      // For now, the local preview works immediately and doesn't require backend changes
 
       // Add tutor response
       const tutorMessage = {
@@ -160,6 +171,7 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
             message={msg.message}
             speaker={msg.speaker}
             latex={msg.latex || currentProblem?.normalizedLatex}
+            imageUrl={msg.imageUrl}
           />
         ))}
         

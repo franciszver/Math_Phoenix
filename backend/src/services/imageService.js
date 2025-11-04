@@ -105,16 +105,16 @@ export async function extractTextWithTextract(imageBuffer) {
     const latency = Date.now() - startTime;
 
     // Extract text from blocks
-    const textBlocks = response.Blocks
-      ?.filter(block => block.BlockType === 'LINE')
+    const lineBlocks = response.Blocks?.filter(block => block.BlockType === 'LINE') || [];
+    const textBlocks = lineBlocks
       .map(block => block.Text)
       .filter(text => text)
       .join(' ') || '';
 
-    const confidence = response.Blocks
-      ?.filter(block => block.BlockType === 'LINE')
-      .map(block => block.Confidence || 0)
-      .reduce((sum, conf) => sum + conf, 0) / (response.Blocks?.length || 1) || 0;
+    // Calculate average confidence from LINE blocks only
+    const confidence = lineBlocks.length > 0
+      ? lineBlocks.reduce((sum, block) => sum + (block.Confidence || 0), 0) / lineBlocks.length / 100
+      : 0; // Convert from percentage (0-100) to decimal (0-1)
 
     const success = textBlocks.trim().length > 0 && confidence > 0.5;
 
@@ -169,7 +169,7 @@ export async function extractTextWithVision(imageBuffer) {
     const base64Image = imageBuffer.toString('base64');
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-vision-preview',
+      model: 'gpt-4o', // Updated from deprecated 'gpt-4-vision-preview'
       messages: [
         {
           role: 'user',
@@ -239,8 +239,16 @@ export async function extractTextFromImage(imageBuffer) {
   logger.info('Attempting Textract extraction...');
   const textractResult = await extractTextWithTextract(imageBuffer);
 
-  // If Textract succeeded with good confidence, use it
-  if (textractResult.success && textractResult.confidence > 0.7) {
+  // Determine if we should use Textract result or fallback
+  // Fallback if: low confidence, failed, or text looks invalid (too short, single character)
+  const shouldFallback = 
+    !textractResult.success || 
+    textractResult.confidence < 0.7 || 
+    textractResult.text.trim().length < 2 || // Too short to be meaningful
+    /^[A-Za-z]$/.test(textractResult.text.trim()); // Single letter (likely misread)
+
+  // If Textract succeeded with good confidence and valid text, use it
+  if (!shouldFallback) {
     logger.info('Textract extraction successful');
     const totalLatency = Date.now() - pipelineStartTime;
     trackPipelineMetrics(textractResult, totalLatency);
@@ -248,7 +256,10 @@ export async function extractTextFromImage(imageBuffer) {
   }
 
   // Fallback to Vision API
-  logger.info('Textract failed or low confidence, trying Vision API...');
+  logger.info(`Textract ${textractResult.success ? 'low confidence' : 'failed'}, trying Vision API...`, {
+    textract_confidence: textractResult.confidence,
+    textract_text: textractResult.text.substring(0, 50)
+  });
   trackFallback();
   
   try {

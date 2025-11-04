@@ -5,7 +5,7 @@
 
 import '../config/env.js';
 import { dynamoDocClient } from './aws.js';
-import { PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { createLogger } from '../utils/logger.js';
 import { NotFoundError, AWSError } from '../utils/errorHandler.js';
 import { generateSessionCode, validateSessionCode } from '../utils/sessionCode.js';
@@ -236,5 +236,33 @@ export async function addToTranscript(sessionCode, speaker, message) {
   return await updateSession(sessionCode, {
     transcript: updatedTranscript
   });
+}
+
+/**
+ * Delete a session
+ * @param {string} sessionCode - Session code
+ * @returns {Promise<void>}
+ */
+export async function deleteSession(sessionCode) {
+  if (!validateSessionCode(sessionCode)) {
+    throw new Error('Invalid session code format');
+  }
+
+  // First verify session exists
+  await getSession(sessionCode);
+
+  try {
+    await dynamoDocClient.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: { session_code: sessionCode }
+      })
+    );
+
+    logger.info(`Session deleted: ${sessionCode}`);
+  } catch (error) {
+    logger.error('Error deleting session:', error);
+    throw new AWSError('Failed to delete session', error);
+  }
 }
 

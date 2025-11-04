@@ -12,7 +12,8 @@ import {
   getAggregateStatsHandler, 
   getAllSessionsHandler, 
   getSessionDetailsHandler,
-  updateProblemTagsHandler 
+  updateProblemTagsHandler,
+  deleteSessionHandler 
 } from './handlers/dashboardHandler.js';
 import { requireDashboardAuth } from './middleware/auth.js';
 
@@ -53,6 +54,7 @@ app.get('/api/dashboard/stats/aggregate', requireDashboardAuth, getAggregateStat
 app.get('/api/dashboard/sessions', requireDashboardAuth, getAllSessionsHandler);
 app.get('/api/dashboard/sessions/:code', requireDashboardAuth, getSessionDetailsHandler);
 app.put('/api/dashboard/sessions/:code/problems/:problemId', requireDashboardAuth, updateProblemTagsHandler);
+app.delete('/api/dashboard/sessions/:code', requireDashboardAuth, deleteSessionHandler);
 
 // 404 handler (must come before error handler)
 app.use((req, res) => {

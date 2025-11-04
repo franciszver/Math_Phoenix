@@ -4,7 +4,7 @@
 
 import { generateDashboardToken } from '../middleware/auth.js';
 import { getAggregateStats, getAllSessionsWithStats, getSessionDetails } from '../services/dashboardService.js';
-import { getSession, updateSession } from '../services/sessionService.js';
+import { getSession, updateSession, deleteSession } from '../services/sessionService.js';
 import { collectMLData } from '../services/mlDataService.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
@@ -158,6 +158,27 @@ export async function updateProblemTagsHandler(req, res, next) {
     res.json({
       success: true,
       problem: updatedProblems[problemIndex]
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * DELETE /api/dashboard/sessions/:code
+ * Delete a session
+ */
+export async function deleteSessionHandler(req, res, next) {
+  try {
+    const { code } = req.params;
+
+    await deleteSession(code);
+
+    logger.info(`Session ${code} deleted by dashboard user`);
+    
+    res.json({
+      success: true,
+      message: 'Session deleted successfully'
     });
   } catch (error) {
     next(error);
