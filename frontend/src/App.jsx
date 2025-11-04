@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { ConsentPopup } from './components/ConsentPopup';
 import { SessionEntry } from './components/SessionEntry';
 import { Chat } from './components/Chat';
 import { DashboardLogin } from './components/DashboardLogin';
 import { Dashboard } from './components/Dashboard';
 import { DashboardLink } from './components/DashboardLink';
+import { CollaborationWorkspace } from './components/CollaborationWorkspace';
 import { createSession, resumeSession, getSession, dashboardLogin } from './services/api';
 import './App.css';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   // Dashboard state
   const [dashboardToken, setDashboardToken] = useState(() => {
     return localStorage.getItem('dashboardToken');
   });
-  const [isDashboardRoute, setIsDashboardRoute] = useState(() => {
-    return window.location.pathname === '/dashboard';
-  });
+  const isDashboardRoute = location.pathname === '/dashboard';
+  const isCollaborationRoute = location.pathname.startsWith('/collaboration/');
   
   // Chat app state
   const [hasConsented, setHasConsented] = useState(false);
@@ -25,11 +29,14 @@ function App() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [prefilledSessionCode, setPrefilledSessionCode] = useState(null);
+  const [collaborationRequested, setCollaborationRequested] = useState(false);
+  const [collaborationSessionId, setCollaborationSessionId] = useState(null);
 
 
   // Clear localStorage on page load to prevent accidental session reuse
+  // But don't clear if on collaboration route (we need it to identify student)
   useEffect(() => {
-    if (!isDashboardRoute) {
+    if (!isDashboardRoute && !isCollaborationRoute) {
       localStorage.removeItem('mathPhoenixSession');
       
       // Check URL for session code to pre-fill (but don't auto-load)
@@ -39,18 +46,23 @@ function App() {
         setPrefilledSessionCode(urlSessionCode);
       }
     }
-  }, [isDashboardRoute]);
+  }, [isDashboardRoute, isCollaborationRoute]);
 
-  // Update route when pathname changes
-  useEffect(() => {
-    const checkRoute = () => {
-      setIsDashboardRoute(window.location.pathname === '/dashboard');
-    };
-    
-    checkRoute();
-    window.addEventListener('popstate', checkRoute);
-    return () => window.removeEventListener('popstate', checkRoute);
-  }, []);
+  // Handle collaboration route - render workspace directly
+  if (isCollaborationRoute) {
+    // Determine if user is teacher or student
+    // We'll check this in CollaborationWorkspace by comparing session codes
+    // Default: if they have dashboard token, they're likely a teacher
+    // But CollaborationWorkspace will verify by checking student_session_id
+    const isTeacher = !!dashboardToken;
+    return (
+      <CollaborationWorkspace 
+        token={dashboardToken} 
+        isTeacher={isTeacher}
+        studentSessionCode={sessionCode || localStorage.getItem('mathPhoenixSession')}
+      />
+    );
+  }
 
   // Handle dashboard login
   const handleDashboardLogin = async (password) => {
@@ -67,8 +79,7 @@ function App() {
   const handleDashboardLogout = () => {
     setDashboardToken(null);
     localStorage.removeItem('dashboardToken');
-    window.history.pushState({}, '', '/');
-    setIsDashboardRoute(false);
+    navigate('/');
   };
 
   // Handle quit/log off from chat session
@@ -126,6 +137,8 @@ function App() {
       
       setInitialMessages(messages);
       setHasActiveProblem(!!session.current_problem_id);
+      setCollaborationRequested(session.collaboration_requested || false);
+      setCollaborationSessionId(session.collaboration_session_id || null);
       localStorage.setItem('mathPhoenixSession', session.session_code);
     } catch (error) {
       console.error('Error loading session:', error);
@@ -205,8 +218,29 @@ function App() {
         hasActiveProblem={hasActiveProblem}
         onError={setError}
         onQuit={handleQuitSession}
+        collaborationRequested={collaborationRequested}
+        collaborationSessionId={collaborationSessionId}
+        onCollaborationRequested={(data) => {
+          setCollaborationRequested(data.collaboration_requested);
+          setCollaborationSessionId(data.collaboration_session_id);
+        }}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/collaboration/:collabSessionId" element={
+          <AppContent />
+        } />
+        <Route path="/*" element={
+          <AppContent />
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

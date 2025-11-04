@@ -5,6 +5,13 @@
   max-width: 1200px;
   margin: 0 auto;
   background: var(--bg-warm-card);
+  position: relative;
+}
+
+.chat-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
 }
 
 .chat-header {

@@ -1,0 +1,72 @@
+.collaboration-blocking-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+}
+
+.collaboration-blocking-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.blocking-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+}
+
+.collaboration-blocking-modal h2 {
+  margin: 0 0 12px 0;
+  font-size: 1.75rem;
+  color: #333;
+}
+
+.blocking-message {
+  font-size: 1.25rem;
+  color: #4CAF50;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.blocking-description {
+  color: #666;
+  margin: 0 0 32px 0;
+  line-height: 1.6;
+}
+
+.join-collaboration-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.join-collaboration-btn:hover {
+  background-color: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.join-collaboration-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
