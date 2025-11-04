@@ -3,12 +3,10 @@
  * Tests that all components are properly configured
  */
 
-import dotenv from 'dotenv';
+import '../src/config/env.js'; // Load environment variables first
 import { validateOpenAIConfig, testOpenAIConnection } from '../src/services/openai.js';
 import { validateAWSConfig } from '../src/services/aws.js';
 import { createLogger } from '../src/utils/logger.js';
-
-dotenv.config();
 
 const logger = createLogger();
 

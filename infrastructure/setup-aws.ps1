@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 $REGION = if ($env:AWS_REGION) { $env:AWS_REGION } else { "us-east-1" }
 $BUCKET_NAME = if ($env:S3_BUCKET_NAME) { $env:S3_BUCKET_NAME } else { "math-phoenix-uploads-$(Get-Date -Format 'yyyyMMddHHmmss')" }
 $TABLE_NAME = if ($env:DYNAMODB_TABLE_NAME) { $env:DYNAMODB_TABLE_NAME } else { "math-phoenix-sessions" }
+$ML_TABLE_NAME = if ($env:DYNAMODB_ML_TABLE_NAME) { $env:DYNAMODB_ML_TABLE_NAME } else { "math-phoenix-ml-data" }
 
 Write-Host "🚀 Setting up AWS infrastructure for Math Phoenix..." -ForegroundColor Green
 Write-Host "Region: $REGION"
@@ -64,10 +65,30 @@ try {
 }
 Write-Host ""
 
+# Create ML Data DynamoDB table (optional, for Phase 3)
+Write-Host "🤖 Creating ML Data DynamoDB table: $ML_TABLE_NAME" -ForegroundColor Cyan
+try {
+    aws dynamodb create-table `
+        --table-name $ML_TABLE_NAME `
+        --attribute-definitions AttributeName=record_id,AttributeType=S `
+        --key-schema AttributeName=record_id,KeyType=HASH `
+        --billing-mode PAY_PER_REQUEST `
+        --region $REGION 2>&1 | Out-Null
+
+    Write-Host "⏳ Waiting for ML table to be active..." -ForegroundColor Yellow
+    aws dynamodb wait table-exists --table-name $ML_TABLE_NAME --region $REGION
+    
+    Write-Host "✅ ML Data DynamoDB table created: $ML_TABLE_NAME" -ForegroundColor Green
+} catch {
+    Write-Host "⚠️  ML Data table may already exist or error occurred (optional)" -ForegroundColor Yellow
+}
+Write-Host ""
+
 Write-Host "✅ Infrastructure setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📝 Add these to your .env file:" -ForegroundColor Cyan
-Write-Host "   S3_BUCKET_NAME=$BUCKET_NAME"
-Write-Host "   DYNAMODB_TABLE_NAME=$TABLE_NAME"
+Write-Host ('   S3_BUCKET_NAME=' + $BUCKET_NAME)
+Write-Host ('   DYNAMODB_TABLE_NAME=' + $TABLE_NAME)
+Write-Host ('   DYNAMODB_ML_TABLE_NAME=' + $ML_TABLE_NAME)
 Write-Host ""
 

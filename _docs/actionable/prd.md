@@ -51,15 +51,17 @@ Build an **AI math tutor** that guides K‑12 students through problems using **
 
 ---
 
-## Full Feature Set (Beyond MVP)
+## Full Feature Set (Stretch Goals / Future Work)
 
-### High‑Value Extensions
+**Note:** The MVP is now complete through Phase 3. The following features are planned for future implementation but are not part of the current MVP scope.
+
+### High‑Value Extensions (Phase 4)
 - **Interactive Whiteboard**: Shared canvas for diagrams and annotations.  
 - **Step Visualization**: Animated breakdown of solution steps.  
 - **Voice Interface**: Text‑to‑speech for tutor responses, speech‑to‑text for student input.  
 - **ML‑based Difficulty Classification**: Train classifier on collected data for nuanced difficulty detection.  
 
-### Polish Features
+### Polish Features (Phase 5)
 - **Animated Avatar**: 2D/3D tutor character with expressions.  
 - **Difficulty Modes**: Adjustable scaffolding by grade level.  
 - **Problem Generation**: System generates similar practice problems for reinforcement.  

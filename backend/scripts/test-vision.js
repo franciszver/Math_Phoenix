@@ -64,7 +64,7 @@ async function testVisionAPI() {
     console.log('📤 Sending test request to Vision API...\n');
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-vision-preview',
+      model: 'gpt-4o', // Updated from deprecated 'gpt-4-vision-preview'
       messages: [
         {
           role: 'user',
