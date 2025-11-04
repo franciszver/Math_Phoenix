@@ -26,6 +26,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [prefilledSessionCode, setPrefilledSessionCode] = useState(null);
 
+
   // Clear localStorage on page load to prevent accidental session reuse
   useEffect(() => {
     if (!isDashboardRoute) {
@@ -182,7 +183,6 @@ function App() {
             onNewSession={handleNewSession}
             prefilledCode={prefilledSessionCode}
           />
-          {error && <div className="error-banner">{error}</div>}
         </div>
         <DashboardLink />
       </>
@@ -199,7 +199,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {error && <div className="error-banner">{error}</div>}
       <Chat
         sessionCode={sessionCode}
         initialMessages={initialMessages}

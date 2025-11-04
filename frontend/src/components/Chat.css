@@ -31,6 +31,7 @@
   font-size: 0.875rem;
   opacity: 0.9;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .problem-info {
@@ -103,5 +104,84 @@
 
 .chat-input-area {
   background: white;
+}
+
+.active-problem-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  margin: 0 1rem;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+  animation: slideDown 0.3s ease-out;
+  position: relative;
+}
+
+.notice-icon {
+  font-size: 1.2rem;
+}
+
+.notice-text {
+  font-weight: 500;
+  color: #856404;
+}
+
+.notice-hint {
+  color: #856404;
+  opacity: 0.8;
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.notice-close {
+  background: none;
+  border: none;
+  color: #856404;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  margin-left: auto;
+}
+
+.notice-close:hover {
+  opacity: 1;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 600px) {
+  .active-problem-notice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .notice-hint {
+    margin-left: 0;
+  }
 }
 

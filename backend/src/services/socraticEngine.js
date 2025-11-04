@@ -28,6 +28,15 @@ QUESTIONING STRATEGY:
 - Step through: "What should we do next?" or "How can we simplify this?"
 - Validate understanding: "Why does that work?" or "Can you explain your reasoning?"
 
+IMPORTANT - AVOID QUESTIONS THAT ELICIT MULTIPLE NUMBERS:
+- NEVER ask questions like "What numbers are we adding?" or "Which numbers do we use?" 
+- These questions cause students to respond with multiple numbers (e.g., "5 and 3"), which can be mistaken for a new problem submission
+- Instead, ask questions that require:
+  * Single-number responses: "What is the first number?" or "What number do we start with?"
+  * Non-numeric responses: "What operation should we use?" or "What step comes next?" or "How do we solve this?"
+  * Method-based answers: "What strategy should we try?" or "What should we do first?"
+- If you need to reference specific numbers, frame it as: "Can you tell me the first number?" or "What number appears in the problem first?"
+
 TONE:
 - Warm and encouraging
 - Patient with mistakes
@@ -35,7 +44,71 @@ TONE:
 - Use age-appropriate language for K-12 students`;
 
 /**
+ * Detect positive feedback/validation in tutor's message
+ * This is the PRIMARY signal for progress - tutor validates when student is correct
+ * @param {string} tutorMessage - Tutor's response message
+ * @returns {boolean} True if tutor is providing positive validation
+ */
+function detectTutorValidation(tutorMessage) {
+  if (!tutorMessage) return false;
+  
+  const message = tutorMessage.toLowerCase().trim();
+  
+  // Strong positive validation indicators
+  const strongValidationPatterns = [
+    /^(that'?s|that is)\s+(correct|right|exactly|perfect)/i,
+    /^(correct|right|exactly|perfect|excellent|great job|well done|good work)/i,
+    /^(you'?re|you are)\s+(correct|right)/i,
+    /(that'?s|that is)\s+(correct|right|exactly|perfect)/i,
+    /^\s*(yes|absolutely|precisely|spot on|perfect)/i,
+    /(good|great|excellent|perfect|right|correct)\s+(answer|thinking|work|job)/i,
+    /(you'?ve got it|you got it|that'?s it|exactly right)/i
+  ];
+  
+  // Avoid false positives - check if tutor is correcting or redirecting
+  const correctionPatterns = [
+    /but/i,
+    /however/i,
+    /not quite/i,
+    /almost/i,
+    /close/i,
+    /think again/i,
+    /try again/i,
+    /let'?s try/i,
+    /what about/i
+  ];
+  
+  const hasCorrection = correctionPatterns.some(pattern => pattern.test(message));
+  
+  // If there's a correction, definitely not validation
+  if (hasCorrection) {
+    return false;
+  }
+  
+  // Check for strong validation patterns
+  const hasStrongValidation = strongValidationPatterns.some(pattern => pattern.test(message));
+  
+  // Strong validation = definite progress (and no correction)
+  if (hasStrongValidation) {
+    return true;
+  }
+  
+  // Check for encouraging phrases that might indicate validation
+  // These are weaker signals, so we only use them if there's no correction
+  const encouragingPatterns = [
+    /^(good|great|nice|well done)\s+(answer|thinking|work|job)/i,
+    /^(good|great|nice|well done)!/i
+  ];
+  
+  const hasEncouraging = encouragingPatterns.some(pattern => pattern.test(message));
+  
+  // Only count encouraging phrases if they're clearly validating (not just general encouragement)
+  return hasEncouraging;
+}
+
+/**
  * Analyze student response to determine progress
+ * This is now a FALLBACK signal when tutor feedback is ambiguous
  * @param {string} studentResponse - Student's response
  * @param {Array} previousSteps - Previous conversation steps
  * @param {string} problemText - The problem text
@@ -77,7 +150,19 @@ function analyzeProgress(studentResponse, previousSteps, problemText) {
   });
 
   // Determine if progress was made
-  const madeProgress = progressScore > stuckScore && response.length > 3;
+  // Allow single-digit numeric responses (like "1", "5") to count as progress
+  // since these are often valid answers to questions like "what's the first number?"
+  const isNumericAnswer = /^\d+$/.test(response); // Pure numeric response (single or multiple digits)
+  const hasMinimumLength = response.length > 3 || isNumericAnswer;
+  const madeProgress = progressScore > stuckScore && hasMinimumLength;
+
+  logger.debug(`[PROGRESS] analyzeProgress result:`, {
+    studentResponse: studentResponse.substring(0, 50),
+    progressScore,
+    stuckScore,
+    responseLength: response.length,
+    madeProgress
+  });
 
   return {
     madeProgress,
@@ -85,6 +170,84 @@ function analyzeProgress(studentResponse, previousSteps, problemText) {
     stuckScore,
     responseLength: response.length
   };
+}
+
+/**
+ * Detect if student response indicates solution completion
+ * Uses LLM to analyze if response is a final answer vs intermediate step
+ * @param {string} studentResponse - Student's response
+ * @param {Object} problem - Problem object
+ * @param {Array} steps - Conversation steps
+ * @returns {Promise<Object>} Detection result with solution_completed flag and answer verification
+ */
+export async function detectSolutionCompletion(studentResponse, problem, steps = []) {
+  try {
+    const prompt = `Analyze this student's response to determine if they have provided a FINAL ANSWER to the problem, or if this is just an intermediate step.
+
+Problem: ${problem.raw_input}
+${problem.normalized_latex !== problem.raw_input ? `LaTeX: ${problem.normalized_latex}` : ''}
+
+Student's response: "${studentResponse}"
+
+Previous conversation context:
+${steps.slice(-3).map(s => `Tutor: ${s.tutor_prompt}\nStudent: ${s.student_response}`).join('\n\n')}
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "solution_completed": true or false,
+  "is_correct": true or false (if solution_completed is true),
+  "reasoning": "brief explanation"
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at analyzing student responses to determine if they have completed a math problem. Respond with valid JSON only.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 150,
+      temperature: 0.3
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() || '{}';
+    
+    // Clean up any markdown code blocks
+    const cleanedContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    
+    const result = JSON.parse(cleanedContent);
+
+    logger.debug(`Solution completion detection: ${result.solution_completed}, correct: ${result.is_correct}`);
+
+    return {
+      solution_completed: result.solution_completed || false,
+      is_correct: result.is_correct || false,
+      reasoning: result.reasoning || ''
+    };
+  } catch (error) {
+    logger.error('Error detecting solution completion:', error);
+    // Fallback: use pattern matching
+    const response = studentResponse.toLowerCase().trim();
+    const completionPatterns = [
+      /^(the answer is|it's|i got|i think it's|the solution is)\s*[:\-]?\s*\d+/i,
+      /^\d+$/,
+      /^x\s*=\s*\d+/i,
+      /^answer:\s*\d+/i
+    ];
+
+    const looksLikeCompletion = completionPatterns.some(pattern => pattern.test(response));
+
+    return {
+      solution_completed: looksLikeCompletion,
+      is_correct: false, // Unknown, would need verification
+      reasoning: 'Pattern matching fallback'
+    };
+  }
 }
 
 /**
@@ -214,38 +377,72 @@ export async function generateTutorResponse(context) {
  * @returns {Promise<Object>} Response with tutor message and metadata
  */
 export async function processStudentResponse({ studentResponse, problem, steps = [] }) {
-  // Analyze progress
+  // Step 1: Analyze student response as fallback signal
   const progressAnalysis = analyzeProgress(studentResponse, steps, problem.raw_input);
   
-  // Count stuck turns
+  // Count stuck turns from previous steps (before current response)
   const stuckTurns = countStuckTurns(steps);
   
-  // Determine if hint should be provided
-  const shouldProvideHint = stuckTurns >= 2 && !progressAnalysis.madeProgress;
+  // Determine preliminary hint logic based on student response analysis
+  // This is used to generate the tutor response, but will be re-evaluated after we check tutor validation
+  const preliminaryShouldProvideHint = stuckTurns >= 2 && !progressAnalysis.madeProgress;
 
   // Update progress analysis with stuck count
   progressAnalysis.stuckTurns = stuckTurns;
-  progressAnalysis.shouldProvideHint = shouldProvideHint;
 
-  // Generate tutor response
+  // Generate tutor response using preliminary hint logic
   const tutorResponse = await generateTutorResponse({
     problemText: problem.raw_input,
     normalizedLatex: problem.normalized_latex,
     category: problem.category,
     studentResponse,
     conversationHistory: steps,
-    shouldProvideHint
+    shouldProvideHint: preliminaryShouldProvideHint
   });
 
-  // Build step object
+  // Step 2: PRIMARY SIGNAL - Check if tutor is providing positive validation
+  const tutorValidates = detectTutorValidation(tutorResponse.message);
+  
+  // Step 3: Determine final progress_made
+  // Use tutor validation as primary signal, fallback to student response analysis
+  // If tutor validates, it's definitely progress (tutor knows the answer is correct)
+  // If tutor doesn't validate but student response shows progress indicators, use that as fallback
+  const finalProgressMade = tutorValidates || progressAnalysis.madeProgress;
+  
+  // Final hint logic: if tutor validates OR student shows progress, don't provide hint
+  // Only provide hint if student has been stuck for 2+ turns AND no progress detected
+  // Note: If tutor validates, we know progress was made, so hint wouldn't be needed anyway
+  const finalShouldProvideHint = stuckTurns >= 2 && !finalProgressMade;
+  
+  // Log for debugging
+  if (tutorValidates) {
+    logger.debug(`[PROGRESS] Tutor validation detected: "${tutorResponse.message.substring(0, 50)}..."`);
+  } else if (progressAnalysis.madeProgress) {
+    logger.debug(`[PROGRESS] Fallback: Student response shows progress indicators`);
+  }
+
+  // Build step object with final progress determination
   const step = {
     tutor_prompt: tutorResponse.message,
     student_response: studentResponse,
-    hint_used: tutorResponse.hintProvided,
-    progress_made: progressAnalysis.madeProgress,
+    hint_used: tutorResponse.hintProvided && finalShouldProvideHint, // Use final hint logic
+    progress_made: finalProgressMade, // Use tutor validation as primary
     stuck_turns: stuckTurns,
     timestamp: new Date().toISOString()
   };
+
+  // Update progress analysis with final hint decision
+  progressAnalysis.shouldProvideHint = finalShouldProvideHint;
+  
+  logger.info(`[STEP] Created step:`, {
+    hint_used: step.hint_used,
+    progress_made: step.progress_made,
+    tutor_validates: tutorValidates,
+    student_response_progress: progressAnalysis.madeProgress,
+    stuck_turns: step.stuck_turns,
+    shouldProvideHint: finalShouldProvideHint,
+    preliminaryShouldProvideHint: preliminaryShouldProvideHint
+  });
 
   return {
     step,

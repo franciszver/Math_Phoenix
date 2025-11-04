@@ -1,12 +1,19 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle, useRef } from 'react';
 import './ChatInput.css';
 
 /**
  * Chat Input Component
  * Text input for sending messages in the conversation
  */
-export function ChatInput({ onSend, disabled, placeholder = "Type your response..." }) {
+export const ChatInput = forwardRef(function ChatInput({ onSend, disabled, placeholder = "Type your response..." }, ref) {
   const [message, setMessage] = useState('');
+  const inputRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRef.current?.focus();
+    }
+  }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -22,6 +29,7 @@ export function ChatInput({ onSend, disabled, placeholder = "Type your response.
   return (
     <form onSubmit={handleSubmit} className="chat-input">
       <input
+        ref={inputRef}
         type="text"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -38,5 +46,5 @@ export function ChatInput({ onSend, disabled, placeholder = "Type your response.
       </button>
     </form>
   );
-}
+});
 

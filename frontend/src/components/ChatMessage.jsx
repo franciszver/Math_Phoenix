@@ -6,7 +6,7 @@ import './ChatMessage.css';
  * Chat Message Component
  * Displays a single message with KaTeX rendering for equations and image previews
  */
-export function ChatMessage({ message, speaker, latex, imageUrl }) {
+export function ChatMessage({ message, speaker, latex, imageUrl, isStreakFeedback }) {
   // Render message with LaTeX support
   const renderMessageWithLatex = (text) => {
     if (!text) return '';
@@ -73,9 +73,9 @@ export function ChatMessage({ message, speaker, latex, imageUrl }) {
   };
 
   return (
-    <div className={`chat-message ${speaker}`}>
+    <div className={`chat-message ${speaker} ${isStreakFeedback ? 'streak-feedback' : ''}`}>
       <div className="message-content">
-        {speaker === 'tutor' && <div className="message-label">Tutor</div>}
+        {speaker === 'tutor' && <div className="message-label">{isStreakFeedback ? '🌟 Streak Update' : 'Tutor'}</div>}
         {speaker === 'student' && <div className="message-label">You</div>}
         {imageUrl && (
           <div className="message-image">

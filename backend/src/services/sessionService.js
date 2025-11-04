@@ -29,7 +29,9 @@ export async function createSession(sessionCode = null) {
     created_at: now.toISOString(),
     expires_at: Math.floor(expiresAt.getTime() / 1000), // Unix timestamp for TTL
     problems: [],
-    transcript: []
+    transcript: [],
+    streak_progress: 0, // Streak meter: 0-100 (each progress_made adds 20%)
+    streak_completions: 0 // Number of times streak meter reached 100%
   };
 
   try {
@@ -210,9 +212,81 @@ export async function addStepToProblem(sessionCode, step) {
     p.problem_id === session.current_problem_id ? problem : p
   );
 
-  return await updateSession(sessionCode, {
-    problems: updatedProblems
+  // Update streak meter
+  const streakUpdates = updateStreakMeter(session, step);
+  
+  logger.debug(`[STREAK] addStepToProblem: streak updates applied`, {
+    sessionCode,
+    problemId: problem.problem_id,
+    stepNumber: step.step_number,
+    streakUpdates
   });
+  
+  const sessionUpdates = {
+    problems: updatedProblems,
+    ...streakUpdates
+  };
+
+  return await updateSession(sessionCode, sessionUpdates);
+}
+
+/**
+ * Update streak meter based on step progress
+ * - Each progress_made = true adds 20% (5 steps to fill 100%)
+ * - Hint usage resets streak to 0
+ * - When streak reaches 100%, increment completions and reset
+ * @param {Object} session - Current session
+ * @param {Object} step - New step added
+ * @returns {Object} Streak updates for session
+ */
+function updateStreakMeter(session, step) {
+  let streakProgress = session.streak_progress || 0;
+  let streakCompletions = session.streak_completions || 0;
+  let streakCompleted = false;
+
+  logger.debug(`[STREAK] updateStreakMeter called:`, {
+    previousProgress: streakProgress,
+    previousCompletions: streakCompletions,
+    stepHintUsed: step.hint_used,
+    stepProgressMade: step.progress_made,
+    stepNumber: step.step_number
+  });
+
+  // Reset streak if hint was used
+  if (step.hint_used) {
+    const previousProgress = streakProgress;
+    streakProgress = 0;
+    logger.info(`[STREAK] RESET due to hint: ${previousProgress}% → 0%`);
+  } else if (step.progress_made) {
+    // Add 20% for each progress step
+    const previousProgress = streakProgress;
+    streakProgress = Math.min(100, streakProgress + 20);
+    logger.info(`[STREAK] INCREASE: ${previousProgress}% → ${streakProgress}% (+20%)`);
+    
+    // Check if streak meter is complete
+    if (streakProgress >= 100) {
+      streakCompletions = (streakCompletions || 0) + 1;
+      streakProgress = 0; // Reset and start new streak
+      streakCompleted = true;
+      logger.info(`[STREAK] COMPLETED! Total completions: ${streakCompletions}, resetting to 0%`);
+    }
+  } else {
+    logger.debug(`[STREAK] NO CHANGE: hint_used=${step.hint_used}, progress_made=${step.progress_made}, progress stays at ${streakProgress}%`);
+  }
+
+  const updates = {
+    streak_progress: streakProgress,
+    streak_completions: streakCompletions
+  };
+
+  // Only set streak_completed if it's true (one-time flag)
+  // Don't clear it here - let it persist until frontend reads it
+  if (streakCompleted) {
+    updates.streak_completed = true;
+  }
+
+  logger.debug(`[STREAK] updateStreakMeter returning:`, updates);
+  return updates;
 }
 
 /**

@@ -107,6 +107,27 @@ export async function sendChatMessage(sessionCode, message) {
 }
 
 /**
+ * Submit MC answer
+ */
+export async function submitMCAnswer(sessionCode, questionId, answerIndex) {
+  const response = await api.post(`/api/sessions/${sessionCode}/chat`, {
+    mc_answer: answerIndex,
+    question_id: questionId
+  });
+  return response.data;
+}
+
+/**
+ * Submit transfer problem answer
+ */
+export async function submitTransferAnswer(sessionCode, answer) {
+  const response = await api.post(`/api/sessions/${sessionCode}/chat`, {
+    transfer_answer: answer
+  });
+  return response.data;
+}
+
+/**
  * Dashboard API Functions
  */
 

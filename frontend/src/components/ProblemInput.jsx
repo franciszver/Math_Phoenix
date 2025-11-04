@@ -78,56 +78,54 @@ export function ProblemInput({ onSubmit, disabled }) {
 
   return (
     <form onSubmit={handleSubmit} className="problem-input">
-      <div className="input-container">
-        <div className="text-input-wrapper">
+      <div className="file-input-wrapper">
+        <div
+          className={`file-drop-zone ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => !selectedFile && fileInputRef.current?.click()}
+        >
           <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Type your math problem here..."
-            disabled={disabled || !!selectedFile}
-            className="text-input"
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg"
+            onChange={handleFileSelect}
+            className="file-input"
+            disabled={disabled}
           />
+          {selectedFile ? (
+            <div className="file-info">
+              <span className="file-name">{selectedFile.name}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFile();
+                }}
+                className="remove-file"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className="file-drop-text">
+              <span>📷 Upload image</span>
+              <span className="file-hint">or drag & drop</span>
+            </div>
+          )}
         </div>
-        
-        <div className="file-input-wrapper">
-          <div
-            className={`file-drop-zone ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => !selectedFile && fileInputRef.current?.click()}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              onChange={handleFileSelect}
-              className="file-input"
-              disabled={disabled}
-            />
-            {selectedFile ? (
-              <div className="file-info">
-                <span className="file-name">{selectedFile.name}</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFile();
-                  }}
-                  className="remove-file"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <div className="file-drop-text">
-                <span>📷 Upload image</span>
-                <span className="file-hint">or drag & drop</span>
-              </div>
-            )}
-          </div>
-        </div>
+      </div>
+
+      <div className="text-input-wrapper">
+        <input
+          type="text"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder="Type your math problem here..."
+          disabled={disabled || !!selectedFile}
+          className="text-input"
+        />
       </div>
       
       <button
