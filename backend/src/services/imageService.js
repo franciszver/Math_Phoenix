@@ -10,6 +10,7 @@ import { DetectDocumentTextCommand } from '@aws-sdk/client-textract';
 import { openai } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { AWSError, OpenAIError } from '../utils/errorHandler.js';
+import { trackOCRMetrics, trackFallback, trackPipelineMetrics } from './metricsService.js';
 import crypto from 'crypto';
 
 const logger = createLogger();
@@ -92,6 +93,7 @@ export async function uploadImageToS3(imageBuffer, originalName) {
  * @returns {Promise<Object>} Extraction result
  */
 export async function extractTextWithTextract(imageBuffer) {
+  const startTime = Date.now();
   try {
     const command = new DetectDocumentTextCommand({
       Document: {
@@ -100,6 +102,7 @@ export async function extractTextWithTextract(imageBuffer) {
     });
 
     const response = await textractClient.send(command);
+    const latency = Date.now() - startTime;
 
     // Extract text from blocks
     const textBlocks = response.Blocks
@@ -113,15 +116,36 @@ export async function extractTextWithTextract(imageBuffer) {
       .map(block => block.Confidence || 0)
       .reduce((sum, conf) => sum + conf, 0) / (response.Blocks?.length || 1) || 0;
 
+    const success = textBlocks.trim().length > 0 && confidence > 0.5;
+
+    // Track metrics
+    trackOCRMetrics({
+      source: 'textract',
+      success,
+      confidence,
+      latency
+    });
+
     logger.debug(`Textract extracted text: ${textBlocks.substring(0, 100)}... (confidence: ${confidence.toFixed(2)})`);
 
     return {
       text: textBlocks.trim(),
       confidence,
       source: 'textract',
-      success: textBlocks.trim().length > 0 && confidence > 0.5
+      success
     };
   } catch (error) {
+    const latency = Date.now() - startTime;
+    
+    // Track failure metrics
+    trackOCRMetrics({
+      source: 'textract',
+      success: false,
+      confidence: 0,
+      latency,
+      error: error.message
+    });
+
     logger.warn('Textract extraction failed:', error.message);
     return {
       text: '',
@@ -139,6 +163,7 @@ export async function extractTextWithTextract(imageBuffer) {
  * @returns {Promise<Object>} Extraction result
  */
 export async function extractTextWithVision(imageBuffer) {
+  const startTime = Date.now();
   try {
     // Convert buffer to base64
     const base64Image = imageBuffer.toString('base64');
@@ -165,17 +190,38 @@ export async function extractTextWithVision(imageBuffer) {
       max_tokens: 500
     });
 
+    const latency = Date.now() - startTime;
     const text = response.choices[0]?.message?.content?.trim() || '';
+    const success = text.length > 0;
+
+    // Track metrics
+    trackOCRMetrics({
+      source: 'vision',
+      success,
+      confidence: 0.9, // Vision API is generally reliable
+      latency
+    });
 
     logger.debug(`Vision extracted text: ${text.substring(0, 100)}...`);
 
     return {
       text,
-      confidence: 0.9, // Vision API is generally reliable
+      confidence: 0.9,
       source: 'vision',
-      success: text.length > 0
+      success
     };
   } catch (error) {
+    const latency = Date.now() - startTime;
+    
+    // Track failure metrics
+    trackOCRMetrics({
+      source: 'vision',
+      success: false,
+      confidence: 0,
+      latency,
+      error: error.message
+    });
+
     logger.error('Vision extraction failed:', error);
     throw new OpenAIError('Failed to extract text using Vision API', error);
   }
@@ -187,6 +233,8 @@ export async function extractTextWithVision(imageBuffer) {
  * @returns {Promise<Object>} Extraction result with best available text
  */
 export async function extractTextFromImage(imageBuffer) {
+  const pipelineStartTime = Date.now();
+  
   // Try Textract first (cheaper, faster)
   logger.info('Attempting Textract extraction...');
   const textractResult = await extractTextWithTextract(imageBuffer);
@@ -194,23 +242,32 @@ export async function extractTextFromImage(imageBuffer) {
   // If Textract succeeded with good confidence, use it
   if (textractResult.success && textractResult.confidence > 0.7) {
     logger.info('Textract extraction successful');
+    const totalLatency = Date.now() - pipelineStartTime;
+    trackPipelineMetrics(textractResult, totalLatency);
     return textractResult;
   }
 
   // Fallback to Vision API
   logger.info('Textract failed or low confidence, trying Vision API...');
+  trackFallback();
+  
   try {
     const visionResult = await extractTextWithVision(imageBuffer);
     logger.info('Vision extraction successful');
+    const totalLatency = Date.now() - pipelineStartTime;
+    trackPipelineMetrics(visionResult, totalLatency);
     return visionResult;
   } catch (error) {
     // If Vision also fails, return Textract result (even if empty/poor quality)
     logger.error('Both Textract and Vision failed, returning Textract result');
-    return {
+    const totalLatency = Date.now() - pipelineStartTime;
+    const finalResult = {
       ...textractResult,
       fallback_failed: true,
       vision_error: error.message
     };
+    trackPipelineMetrics(finalResult, totalLatency);
+    return finalResult;
   }
 }
 

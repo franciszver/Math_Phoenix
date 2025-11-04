@@ -14,7 +14,9 @@ It also provides a **teacher dashboard** with aggregate and per‑session insigh
 - AWS account with:
   - S3 bucket
   - Textract enabled
-  - DynamoDB table (with TTL for 30‑day expiration)
+  - DynamoDB tables:
+    - `math-phoenix-sessions` (with TTL for 30‑day expiration)
+    - `math-phoenix-ml-data` (optional, for ML data collection)
 - OpenAI API key (with access to GPT + Vision endpoints)
 
 ### Installation
@@ -97,6 +99,71 @@ Math_Phoenix/
   - Body: `{ message: "student response" }`
   - Returns: Tutor response, conversation context
 
+## 📊 Phase 3: Monitoring & ML Data Collection
+
+### CloudWatch-Ready Logging & Metrics
+
+**Approach:** Structured logging with CloudWatch-ready JSON output in production.
+
+**Why:** 
+- **Development**: Human-readable console logs for debugging
+- **Production**: JSON-structured logs automatically ingested by CloudWatch Logs
+- **Metrics**: Embedded metric events for CloudWatch Metrics (via log parsing or direct API)
+
+**Implementation:**
+- Enhanced logger outputs structured JSON in production mode
+- OCR/Vision performance metrics tracked:
+  - Success/failure rates by source (Textract vs Vision)
+  - Confidence scores
+  - Latency (milliseconds)
+  - Fallback frequency
+- All metrics include dimensions (source, environment) for filtering
+
+**Metrics Tracked:**
+- `OCR.Attempt` - Total OCR attempts
+- `OCR.Success` / `OCR.Failure` - Success/failure counts
+- `OCR.Confidence` - Average confidence scores
+- `OCR.Latency` - Processing time
+- `OCR.Fallback` - Textract → Vision fallback events
+- `OCR.Pipeline.Success` - Overall pipeline success rate
+
+**Note:** CloudWatch integration requires AWS IAM permissions and CloudWatch Logs/Metrics configuration. Currently logs to console/CloudWatch Logs (structured JSON). Full CloudWatch Metrics integration can be added later.
+
+### ML Data Collection for Future Difficulty Classifier
+
+**Approach:** Real-time collection of structured training data in separate DynamoDB table.
+
+**Why:**
+- **Separate Storage**: ML data persisted independently from session data (different retention needs)
+- **Real-time Collection**: Capture data immediately when problems are submitted (accuracy)
+- **Teacher Feedback**: Teacher overrides are valuable training signals (mark as `teacher_override: true`)
+- **Feature Engineering**: Extract structured features (operation counts, complexity indicators) for ML training
+- **Non-blocking**: Collection happens asynchronously - doesn't impact user experience
+
+**Data Collected:**
+- **Problem Features**: Text length, operation counts, variable counts, number features, complexity indicators
+- **Category Features**: One-hot encoded categories (arithmetic, algebra, geometry, word, multi-step)
+- **Student Performance**: Hints used, steps taken, completion status
+- **OCR Metadata**: Source, confidence, success status (for image problems)
+- **Teacher Corrections**: When teachers manually override tags (valuable training signal)
+
+**Storage:**
+- **Table**: `math-phoenix-ml-data` (separate from session table)
+- **Structure**: 
+  - `record_id`: Unique identifier
+  - `raw_data`: Original problem data (flexibility)
+  - `features`: Extracted feature vector (ML-ready)
+  - `metadata`: Collection metadata (teacher override, OCR info, timestamps)
+
+**Future Use:**
+- Train ML classifier to replace rule-based difficulty classification
+- Analyze patterns in teacher corrections to improve auto-tagging
+- Build confidence scores based on historical performance data
+
+**Note:** ML data table creation is handled via infrastructure scripts. Collection is non-critical (errors logged but don't fail requests).
+
+---
+
 ## 🔒 Rate Limiting
 
 Rate limiting is deferred to Phase 3. See `_docs/actionable/tasks.md` for details.
@@ -116,9 +183,12 @@ See `_docs/` for detailed documentation:
 
 Required environment variables (see `.env.example`):
 - `OPENAI_API_KEY` - OpenAI API key
-- `AWS_ACCESS_KEY_ID` - AWS access key
-- `AWS_SECRET_ACCESS_KEY` - AWS secret key
+- `AWS_ACCESS_KEY_ID` - AWS access key (optional if using default profile)
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key (optional if using default profile)
 - `AWS_REGION` - AWS region (e.g., us-east-1)
 - `SESSION_SECRET` - Secret for session code generation
 - `DASHBOARD_PASSWORD` - Password for teacher dashboard
+- `S3_BUCKET_NAME` - S3 bucket name for image uploads
+- `DYNAMODB_TABLE_NAME` - DynamoDB table name for sessions (default: `math-phoenix-sessions`)
+- `DYNAMODB_ML_TABLE_NAME` - DynamoDB table name for ML data (optional, default: `math-phoenix-ml-data`)
 

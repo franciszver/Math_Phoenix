@@ -93,8 +93,18 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Implement **OCR‑first routing** with Vision fallback (completed in Phase 1).
 - [x] Use **rule‑based difficulty classification** for MVP (completed in Phase 1).
 - [x] Ensure **session codes** are collision‑safe (6-char alphanumeric with validation).
-- [ ] Add logging/monitoring (CloudWatch) for OCR/Vision performance.
-- [ ] Collect structured data for future ML difficulty classifier.
+- [x] Add logging/monitoring (CloudWatch) for OCR/Vision performance.
+  - Enhanced logger with CloudWatch-ready structured JSON output
+  - OCR/Vision metrics tracking (success rates, confidence, latency, fallback frequency)
+  - Metrics logged for: Textract attempts, Vision attempts, pipeline performance
+  - See `backend/src/services/metricsService.js` for implementation
+- [x] Collect structured data for future ML difficulty classifier.
+  - Real-time ML data collection in separate DynamoDB table (`math-phoenix-ml-data`)
+  - Feature extraction (30+ features: operation counts, complexity indicators, student performance)
+  - Teacher override tracking (valuable training signal)
+  - Non-blocking collection (async, doesn't impact UX)
+  - See `backend/src/services/mlDataService.js` for implementation
+  - See `README.md` for detailed approach and reasoning
 
 ---
 

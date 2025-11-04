@@ -7,6 +7,7 @@ import { createSession, getSession, addProblemToSession, addToTranscript } from 
 import { uploadImageToS3, extractTextFromImage } from '../services/imageService.js';
 import { processProblem } from '../services/problemService.js';
 import { generateInitialPrompt } from '../services/socraticEngine.js';
+import { collectMLData } from '../services/mlDataService.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError } from '../utils/errorHandler.js';
 import { validateSessionCode } from '../utils/sessionCode.js';
@@ -58,6 +59,7 @@ export async function submitProblemHandler(req, res, next) {
     // If image provided, process it
     let imageUrl = null;
     let imageKey = null;
+    let ocrResult = null;
     if (imageFile) {
       try {
         // Upload to S3 (always store for debugging)
@@ -66,10 +68,10 @@ export async function submitProblemHandler(req, res, next) {
         imageKey = uploadResult.key;
 
         // Extract text from image
-        const extractionResult = await extractTextFromImage(imageFile.buffer);
+        ocrResult = await extractTextFromImage(imageFile.buffer);
 
-        if (extractionResult.success && extractionResult.text) {
-          rawProblemText = extractionResult.text;
+        if (ocrResult.success && ocrResult.text) {
+          rawProblemText = ocrResult.text;
         } else {
           // Both OCR and Vision failed - return error with manual fallback option
           return res.status(400).json({
@@ -140,6 +142,12 @@ export async function submitProblemHandler(req, res, next) {
       // Continue anyway - problem and transcript are already created
       // The step can be added later or this is just the initial prompt
     }
+
+    // Collect ML training data (non-blocking, async)
+    collectMLData(currentProblem, updatedSession, ocrResult, false)
+      .catch(error => {
+        logger.warn('ML data collection failed (non-critical):', error);
+      });
 
     res.status(201).json({
       session_code: sessionCode,

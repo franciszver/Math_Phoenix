@@ -5,6 +5,7 @@
 import { generateDashboardToken } from '../middleware/auth.js';
 import { getAggregateStats, getAllSessionsWithStats, getSessionDetails } from '../services/dashboardService.js';
 import { getSession, updateSession } from '../services/sessionService.js';
+import { collectMLData } from '../services/mlDataService.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 
@@ -146,6 +147,13 @@ export async function updateProblemTagsHandler(req, res, next) {
     await updateSession(code, { problems: updatedProblems });
 
     logger.info(`Updated problem ${problemId} tags in session ${code}`);
+
+    // Collect ML training data with teacher override flag (non-blocking)
+    const updatedSession = await getSession(code);
+    collectMLData(updatedProblems[problemIndex], updatedSession, null, true)
+      .catch(error => {
+        logger.warn('ML data collection failed after teacher override (non-critical):', error);
+      });
 
     res.json({
       success: true,
