@@ -238,6 +238,7 @@ export async function sendChatMessageHandler(req, res, next) {
         });
 
         assessmentTriggered = true;
+        logger.info(`[ASSESSMENT] MC quiz triggered: solution completed and correct`);
       }
     }
 

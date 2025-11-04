@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ProblemInput } from './ProblemInput';
+import { ProblemSelection } from './ProblemSelection';
 import { ChatMenu } from './ChatMenu';
 import { SessionCodeModal } from './SessionCodeModal';
 import { StreakMeter } from './StreakMeter';
 import { MCQuestion } from './MCQuestion';
 import { TransferProblem } from './TransferProblem';
 import { Toast } from './Toast';
-import { sendChatMessage, submitProblem } from '../services/api';
+import { sendChatMessage, submitProblem, selectProblem } from '../services/api';
 import './Chat.css';
 
 /**
@@ -26,6 +27,7 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
   const [assessmentState, setAssessmentState] = useState(null); // { mcQuestions, currentMCIndex, transferProblem }
   const [activeProblemWarning, setActiveProblemWarning] = useState(false);
   const [toast, setToast] = useState(null); // { message, type }
+  const [multipleProblems, setMultipleProblems] = useState(null); // { problems, invalidProblems, imageUrl, imageKey }
   const messagesEndRef = useRef(null);
   const streakCelebratedRef = useRef(false);
   const chatInputRef = useRef(null);
@@ -92,6 +94,20 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
       // Submit problem to backend
       const response = await submitProblem(sessionCode, text, imageFile);
       
+      // Check if multiple problems were detected
+      if (response.multiple_problems && response.problems && response.problems.length > 0) {
+        // Show problem selection UI
+        setMultipleProblems({
+          problems: response.problems,
+          invalidProblems: response.invalidProblems,
+          imageUrl: imagePreviewUrl || response.image_url || null,
+          imageKey: response.image_key || null
+        });
+        setIsLoading(false);
+        setCanSubmitProblem(true); // Re-enable in case user cancels
+        return;
+      }
+
       // Update current problem info
       const problemInfo = {
         problemId: response.problem_id,
@@ -116,7 +132,16 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
 
     } catch (error) {
       console.error('Error submitting problem:', error);
-      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to submit problem';
+      
+      // Remove the student message that was added (since submission failed)
+      setMessages(prev => prev.slice(0, -1));
+      
+      const errorData = error.response?.data?.error || {};
+      const errorMessage = errorData.message || error.message || 'Failed to submit problem';
+      // Backend returns error code directly as error property, or nested in error.code
+      const errorCode = typeof error.response?.data?.error === 'string' 
+        ? error.response.data.error 
+        : errorData.code;
       
       // Check if it's the "already active problem" error
       if (errorMessage.includes('already active') || errorMessage.includes('Complete it before')) {
@@ -126,29 +151,102 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
           setActiveProblemWarning(false);
         }, 5000); // Hide after 5 seconds
         // Don't re-enable problem submission
-      } else {
+      } else if (errorCode === 'no_math_problem') {
+        // Handle "no math problem" error - show as toast popup
+        setToast({
+          message: 'I am not able to figure out which problem you need help with, please try again',
+          type: 'error'
+        });
         setCanSubmitProblem(true);
-        onError?.(errorMessage);
+      } else {
+        // Other errors - show as toast popup
+        // Clean up error message to remove technical details
+        let cleanErrorMessage = errorMessage;
+        if (errorMessage.includes('Request failed with status code')) {
+          cleanErrorMessage = 'I am not able to figure out which problem you need help with, please try again';
+        }
+        
+        setToast({
+          message: cleanErrorMessage,
+          type: 'error'
+        });
+        setCanSubmitProblem(true);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleProblemSelect = async (selectedProblemText) => {
+    if (!sessionCode || !multipleProblems) return;
+
+    setIsLoading(true);
+    setCanSubmitProblem(false);
+
+    try {
+      // Remove the student message that was added earlier (we'll add it back with the selected problem)
+      setMessages(prev => prev.slice(0, -1));
+
+      // Submit selected problem
+      const response = await selectProblem(
+        sessionCode,
+        selectedProblemText,
+        multipleProblems.imageKey || null
+      );
+
+      // Update current problem info
+      const problemInfo = {
+        problemId: response.problem_id,
+        category: response.problem_info?.category,
+        difficulty: response.problem_info?.difficulty,
+        normalizedLatex: response.problem_info?.normalized_latex || null
+      };
+      setCurrentProblem(problemInfo);
+
+      // Add student message with selected problem
+      const studentMessage = {
+        speaker: 'student',
+        message: selectedProblemText,
+        timestamp: new Date().toISOString(),
+        imageUrl: multipleProblems.imageUrl || null
+      };
+      setMessages(prev => [...prev, studentMessage]);
+
+      // Add tutor response
+      const tutorMessage = {
+        speaker: 'tutor',
+        message: response.tutor_message,
+        timestamp: new Date().toISOString(),
+        latex: response.problem_info?.normalized_latex || null
+      };
+      setMessages(prev => [...prev, tutorMessage]);
+
+      // Clear multiple problems state
+      setMultipleProblems(null);
+    } catch (error) {
+      console.error('Error selecting problem:', error);
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to select problem';
+      onError?.(errorMessage);
+      setCanSubmitProblem(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleProblemSelectionCancel = () => {
+    // Remove the student message that was added
+    setMessages(prev => prev.slice(0, -1));
+    setMultipleProblems(null);
+    setCanSubmitProblem(true);
+  };
+
   const handleChatSend = async (message) => {
     if (!sessionCode || isLoading) return;
 
-    // Check if user is trying to submit a problem in the chat input
-    // Simple heuristic: if message looks like a problem (contains numbers and math symbols)
-    const looksLikeProblem = /[\d+\-*/().=]/.test(message) && message.length > 3;
-    if (looksLikeProblem && !canSubmitProblem && currentProblem) {
-      // Show temporary warning banner
-      setActiveProblemWarning(true);
-      setTimeout(() => {
-        setActiveProblemWarning(false);
-      }, 5000); // Hide after 5 seconds
-      return;
-    }
+    // If there's an active problem, always treat input as a response to the tutor
+    // Only when there's NO active problem should input be treated as a new problem
+    // Since we're in handleChatSend, we know there's an active problem (canSubmitProblem is false)
+    // So we always treat this as a chat response, never as a new problem attempt
 
     setIsLoading(true);
 
@@ -386,6 +484,7 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
             latex={msg.latex || currentProblem?.normalizedLatex}
             imageUrl={msg.imageUrl}
             isStreakFeedback={msg.isStreakFeedback}
+            isError={msg.isError}
           />
         ))}
 
@@ -425,7 +524,15 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
       </div>
 
       <div className="chat-input-area">
-        {canSubmitProblem ? (
+        {multipleProblems ? (
+          <ProblemSelection
+            problems={multipleProblems.problems}
+            invalidProblems={multipleProblems.invalidProblems}
+            imageUrl={multipleProblems.imageUrl}
+            onSelect={handleProblemSelect}
+            onCancel={handleProblemSelectionCancel}
+          />
+        ) : canSubmitProblem ? (
           <ProblemInput
             onSubmit={handleProblemSubmit}
             disabled={isLoading}

@@ -10,6 +10,153 @@ import { OpenAIError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
 
+/**
+ * Check if a problem requires a formula to solve
+ * @param {string} problemText - Problem text
+ * @param {string} category - Problem category
+ * @returns {Promise<Object>} Result with requiresFormula boolean and suggested formula name
+ */
+async function detectFormulaRequirement(problemText, category) {
+  // Rule-based checks for common formula-requiring problems
+  const formulaPatterns = {
+    'Pythagorean theorem': /pythagorean|right triangle|hypotenuse|a² \+ b²|a\^2 \+ b\^2/i,
+    'Area of circle': /area.*circle|circle.*area|πr²|pi.*r\^2/i,
+    'Area of rectangle': /area.*rectangle|rectangle.*area|length.*width/i,
+    'Area of triangle': /area.*triangle|triangle.*area|base.*height/i,
+    'Volume of sphere': /volume.*sphere|sphere.*volume|4\/3.*πr³/i,
+    'Distance formula': /distance.*between|between.*points|coordinate/i,
+    'Quadratic formula': /quadratic|ax² \+ bx \+ c/i,
+    'Slope formula': /slope|m = |rise.*run/i,
+    'Perimeter formula': /perimeter|perimeter of/i
+  };
+
+  // Check patterns
+  for (const [formulaName, pattern] of Object.entries(formulaPatterns)) {
+    if (pattern.test(problemText)) {
+      return { requiresFormula: true, formulaName };
+    }
+  }
+
+  // Use LLM for more complex detection
+  try {
+    const prompt = `Does this math problem require a specific formula to solve? Examples: Pythagorean theorem, area formulas, distance formula, etc.
+
+Problem: "${problemText}"
+Category: ${category}
+
+Respond with:
+- "YES: [formula name]" if it requires a formula (e.g., "YES: Pythagorean theorem")
+- "NO" if no specific formula is needed
+
+Only respond with YES or NO followed by the formula name if applicable.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem analyzer. Determine if a problem requires a specific formula.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 50,
+      temperature: 0.2
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    if (responseText.toUpperCase().startsWith('YES')) {
+      const formulaMatch = responseText.match(/YES:\s*(.+)/i);
+      const formulaName = formulaMatch ? formulaMatch[1].trim() : 'a formula';
+      return { requiresFormula: true, formulaName };
+    }
+
+    return { requiresFormula: false, formulaName: null };
+  } catch (error) {
+    logger.error('Error detecting formula requirement:', error);
+    return { requiresFormula: false, formulaName: null };
+  }
+}
+
+/**
+ * Check if we've already asked about the formula in the conversation
+ * @param {Array} steps - Conversation steps
+ * @returns {boolean} True if formula question was already asked
+ */
+function hasAskedAboutFormula(steps) {
+  if (!steps || steps.length === 0) return false;
+  
+  const formulaQuestionPatterns = [
+    /what.*formula/i,
+    /do you know.*formula/i,
+    /which formula/i,
+    /formula.*would.*best/i,
+    /formula.*should.*use/i
+  ];
+
+  return steps.some(step => {
+    const tutorPrompt = step.tutor_prompt || '';
+    return formulaQuestionPatterns.some(pattern => pattern.test(tutorPrompt));
+  });
+}
+
+/**
+ * Check if student response indicates they know the correct formula
+ * @param {string} studentResponse - Student's response
+ * @param {string} expectedFormulaName - Expected formula name
+ * @param {string} problemText - Problem text
+ * @returns {Promise<Object>} Result with knowsFormula boolean and confidence
+ */
+async function evaluateFormulaKnowledge(studentResponse, expectedFormulaName, problemText) {
+  if (!studentResponse || !expectedFormulaName) {
+    return { knowsFormula: false, confidence: 0 };
+  }
+
+  try {
+    const prompt = `Does this student response indicate they know the correct formula for this problem?
+
+Problem: "${problemText}"
+Expected formula: "${expectedFormulaName}"
+Student response: "${studentResponse}"
+
+Respond with:
+- "YES" if the student mentions the correct formula (or clearly knows it)
+- "NO" if the student doesn't mention the correct formula or seems unsure
+
+Only respond with YES or NO.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'Evaluate if a student knows the correct formula for a math problem.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 10,
+      temperature: 0.1
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim().toUpperCase() || '';
+    const knowsFormula = responseText === 'YES';
+    
+    return { 
+      knowsFormula, 
+      confidence: knowsFormula ? 0.9 : 0.1 
+    };
+  } catch (error) {
+    logger.error('Error evaluating formula knowledge:', error);
+    return { knowsFormula: false, confidence: 0 };
+  }
+}
+
 // Enhanced system prompt (from our discussion)
 const SYSTEM_PROMPT = `You are a patient, encouraging math tutor for K-12 students. Your role is to guide students to discover solutions through Socratic questioning.
 
@@ -287,6 +434,7 @@ function countStuckTurns(steps) {
  * @param {string} context.studentResponse - Student's current response
  * @param {Array} context.conversationHistory - Previous conversation steps
  * @param {boolean} context.shouldProvideHint - Whether to provide a hint
+ * @param {Object} context.formulaInfo - Formula information (if applicable)
  * @returns {Promise<Object>} Tutor response with metadata
  */
 export async function generateTutorResponse(context) {
@@ -297,7 +445,8 @@ export async function generateTutorResponse(context) {
     studentResponse,
     conversationHistory = [],
     shouldProvideHint = false,
-    correctionContext = null
+    correctionContext = null,
+    formulaInfo = null
   } = context;
 
   // Build conversation history for context
@@ -346,6 +495,27 @@ export async function generateTutorResponse(context) {
     });
   }
 
+  // Add formula question instruction if needed
+  if (formulaInfo && formulaInfo.shouldAskAboutFormula) {
+    messages.push({
+      role: 'system',
+      content: `This problem requires the ${formulaInfo.formulaName} formula. Ask the student: "Do you know what formula would be best for this problem?" or "What formula do you think we should use?" This helps assess if they know the formula before proceeding.`
+    });
+  } else if (formulaInfo && formulaInfo.studentKnowsFormula !== undefined) {
+    // Student already answered about the formula
+    if (formulaInfo.studentKnowsFormula) {
+      messages.push({
+        role: 'system',
+        content: `The student knows the ${formulaInfo.formulaName} formula. Acknowledge this and guide them to apply it to solve the problem.`
+      });
+    } else {
+      messages.push({
+        role: 'system',
+        content: `The student doesn't seem to know the ${formulaInfo.formulaName} formula. Gently introduce it: "For this type of problem, we use the ${formulaInfo.formulaName}. Let me explain how it works..." Then guide them through applying it.`
+      });
+    }
+  }
+
   // Add hint instruction if needed
   if (shouldProvideHint) {
     messages.push({
@@ -392,6 +562,41 @@ export async function processStudentResponse({ studentResponse, problem, steps =
   // Count stuck turns from previous steps (before current response)
   const stuckTurns = countStuckTurns(steps);
   
+  // Check if problem requires a formula and if we should ask about it
+  let formulaInfo = null;
+  
+  // Detect if problem requires a formula
+  const formulaRequirement = await detectFormulaRequirement(problem.raw_input, problem.category);
+  
+  if (formulaRequirement.requiresFormula) {
+    // Check if the last tutor prompt was asking about the formula
+    const lastStep = steps.length > 0 ? steps[steps.length - 1] : null;
+    const lastTutorPrompt = lastStep?.tutor_prompt || '';
+    const lastPromptAskedAboutFormula = /what.*formula|do you know.*formula|which formula|formula.*would.*best|formula.*should.*use/i.test(lastTutorPrompt);
+    
+    if (lastPromptAskedAboutFormula && studentResponse) {
+      // Last step asked about formula, this response is answering it - evaluate
+      const formulaKnowledge = await evaluateFormulaKnowledge(
+        studentResponse, 
+        formulaRequirement.formulaName, 
+        problem.raw_input
+      );
+      formulaInfo = {
+        shouldAskAboutFormula: false,
+        formulaName: formulaRequirement.formulaName,
+        studentKnowsFormula: formulaKnowledge.knowsFormula
+      };
+      logger.debug(`[FORMULA] Student knows formula: ${formulaKnowledge.knowsFormula} (confidence: ${formulaKnowledge.confidence})`);
+    } else if (!hasAskedAboutFormula(steps) && steps.length <= 2) {
+      // Haven't asked yet and we're early in conversation - ask about the formula
+      formulaInfo = {
+        shouldAskAboutFormula: true,
+        formulaName: formulaRequirement.formulaName
+      };
+      logger.debug(`[FORMULA] Detected formula requirement: ${formulaRequirement.formulaName}, will ask student`);
+    }
+  }
+  
   // Determine preliminary hint logic based on student response analysis
   // This is used to generate the tutor response, but will be re-evaluated after we check tutor validation
   const preliminaryShouldProvideHint = stuckTurns >= 2 && !progressAnalysis.madeProgress;
@@ -406,7 +611,8 @@ export async function processStudentResponse({ studentResponse, problem, steps =
     category: problem.category,
     studentResponse,
     conversationHistory: steps,
-    shouldProvideHint: preliminaryShouldProvideHint
+    shouldProvideHint: preliminaryShouldProvideHint,
+    formulaInfo
   });
 
   // Step 2: PRIMARY SIGNAL - Check if tutor is providing positive validation

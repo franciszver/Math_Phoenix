@@ -59,6 +59,7 @@ export function trackFallback() {
  */
 export function trackPipelineMetrics(result, totalLatency) {
   const finalSuccess = result.success && result.text && result.text.trim().length > 0;
+  const noMathProblem = result.noMathProblem || false;
   
   logger.metric('OCR.Pipeline.Success', finalSuccess ? 1 : 0, 'Count');
   logger.metric('OCR.Pipeline.Latency', totalLatency, 'Milliseconds');
@@ -68,6 +69,11 @@ export function trackPipelineMetrics(result, totalLatency) {
       source: result.source,
       confidence: result.confidence,
       text_length: result.text.length,
+      total_latency_ms: totalLatency
+    });
+  } else if (noMathProblem) {
+    logger.info('OCR pipeline: No math problem detected in image', {
+      source: result.source,
       total_latency_ms: totalLatency
     });
   } else {

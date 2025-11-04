@@ -179,6 +179,196 @@ export function classifyDifficulty(text, category) {
 }
 
 /**
+ * Detect if text contains one or multiple math problems
+ * @param {string} rawText - Raw text input
+ * @returns {Promise<Object>} Detection result with problems array
+ */
+export async function detectMultipleProblems(rawText) {
+  if (!rawText || rawText.trim().length === 0) {
+    return { isMultiple: false, problems: [] };
+  }
+
+  try {
+    const prompt = `Does this text contain one math problem or multiple separate math problems? If multiple, list them numbered.
+
+Text: "${rawText}"
+
+If there is only ONE problem, respond with: "SINGLE: [the problem text]"
+If there are MULTIPLE problems, respond with each problem on a new line numbered: "MULTIPLE:\n1. [first problem]\n2. [second problem]\n..."`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem parser. Identify if text contains one or multiple separate math problems.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.3
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    if (responseText.startsWith('MULTIPLE:')) {
+      // Extract problems from numbered list
+      const problemLines = responseText
+        .replace('MULTIPLE:', '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && /^\d+[\.\)]\s+/.test(line));
+      
+      const problems = problemLines.map(line => {
+        return line.replace(/^\d+[\.\)]\s*/, '').trim();
+      }).filter(p => p.length > 0);
+      
+      if (problems.length >= 2) {
+        logger.debug(`Detected ${problems.length} problems in text`);
+        return { isMultiple: true, problems };
+      }
+    } else if (responseText.startsWith('SINGLE:')) {
+      // Single problem, extract it
+      const singleProblem = responseText.replace('SINGLE:', '').trim();
+      return { isMultiple: false, problems: [singleProblem] };
+    }
+
+    // Fallback: treat as single problem
+    return { isMultiple: false, problems: [rawText] };
+  } catch (error) {
+    logger.error('Error detecting multiple problems:', error);
+    // Fallback to single problem on error
+    return { isMultiple: false, problems: [rawText] };
+  }
+}
+
+/**
+ * Check if text contains a math problem
+ * @param {string} text - Text to check
+ * @returns {Promise<Object>} Result with hasMath boolean
+ */
+export async function hasMathProblem(text) {
+  if (!text || text.trim().length === 0) {
+    return { hasMath: false };
+  }
+
+  try {
+    const prompt = `Does this text contain a math problem? Respond with only "YES" or "NO".
+
+Text: "${text}"`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem detector. Determine if text contains a math problem.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 10,
+      temperature: 0.1
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim().toUpperCase() || '';
+    const hasMath = responseText === 'YES';
+    
+    logger.debug(`Math problem check: ${hasMath ? 'YES' : 'NO'}`);
+    return { hasMath };
+  } catch (error) {
+    logger.error('Error checking for math problem:', error);
+    // Fallback: assume it has math if text is not empty
+    return { hasMath: text.trim().length > 0 };
+  }
+}
+
+/**
+ * Validate if a problem text is valid and complete
+ * @param {string} text - Problem text to validate
+ * @returns {Promise<Object>} Validation result
+ */
+export async function validateProblem(text) {
+  if (!text || text.trim().length === 0) {
+    return { valid: false, reason: 'Problem text is empty' };
+  }
+
+  try {
+    const prompt = `Is this a valid, complete math problem? Respond with "VALID" or "INVALID" followed by a brief reason.
+
+Problem: "${text}"`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem validator. Determine if text is a valid, complete, solvable math problem.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 100,
+      temperature: 0.2
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    const valid = responseText.toUpperCase().startsWith('VALID');
+    
+    // Extract reason if invalid
+    let reason = null;
+    if (!valid) {
+      const reasonMatch = responseText.match(/INVALID\s*:?\s*(.+)/i);
+      reason = reasonMatch ? reasonMatch[1].trim() : 'Problem is not valid or complete';
+    }
+    
+    logger.debug(`Problem validation: ${valid ? 'VALID' : 'INVALID'} - ${reason || 'N/A'}`);
+    return { valid, reason };
+  } catch (error) {
+    logger.error('Error validating problem:', error);
+    // Fallback: assume valid if we can't validate
+    return { valid: true };
+  }
+}
+
+/**
+ * Validate multiple problems
+ * @param {string[]} problems - Array of problem texts
+ * @returns {Promise<Object>} Validation result with valid and invalid problems
+ */
+export async function validateMultipleProblems(problems) {
+  if (!problems || problems.length === 0) {
+    return { validProblems: [], invalidProblems: [] };
+  }
+
+  const validProblems = [];
+  const invalidProblems = [];
+
+  // Validate each problem
+  for (const problemText of problems) {
+    const validation = await validateProblem(problemText);
+    if (validation.valid) {
+      validProblems.push(problemText);
+    } else {
+      invalidProblems.push({
+        text: problemText,
+        reason: validation.reason || 'Invalid problem'
+      });
+    }
+  }
+
+  logger.info(`Validated ${problems.length} problems: ${validProblems.length} valid, ${invalidProblems.length} invalid`);
+  return { validProblems, invalidProblems };
+}
+
+/**
  * Process a problem: normalize, categorize, and classify difficulty
  * @param {string} rawText - Raw problem text
  * @returns {Promise<Object>} Processed problem data

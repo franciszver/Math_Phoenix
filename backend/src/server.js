@@ -4,7 +4,7 @@ import cors from 'cors';
 import { createLogger } from './utils/logger.js';
 import { handleError } from './utils/errorHandler.js';
 import { getSessionHandler, createOrGetSessionHandler } from './handlers/sessionHandler.js';
-import { submitProblemHandler } from './handlers/problemHandler.js';
+import { submitProblemHandler, selectProblemHandler } from './handlers/problemHandler.js';
 import { sendChatMessageHandler } from './handlers/chatHandler.js';
 import { upload, validateUpload } from './middleware/upload.js';
 import { 
@@ -41,6 +41,7 @@ app.post('/api/sessions', createOrGetSessionHandler);
 
 // Problem routes (with optional image upload)
 app.post('/api/sessions/:code/problems', upload.single('image'), submitProblemHandler);
+app.post('/api/sessions/:code/problems/select', selectProblemHandler);
 
 // Chat routes
 app.post('/api/sessions/:code/chat', sendChatMessageHandler);

@@ -96,6 +96,18 @@
   border-radius: 4px;
 }
 
+.chat-message.error-message.tutor .message-content {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  color: #856404;
+  font-weight: 500;
+}
+
+.chat-message.error-message.tutor .message-label {
+  color: #856404;
+  font-weight: 600;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
