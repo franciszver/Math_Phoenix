@@ -38,7 +38,10 @@ export async function createCollaborationSession(studentSessionId, selectedProbl
   // Check if student already has an active collaboration
   const existingCollab = await getActiveCollaborationByStudent(studentSessionId);
   if (existingCollab) {
-    throw new Error('Student already has an active collaboration session');
+    // Return the existing collaboration session ID so frontend can navigate to it
+    const error = new Error('Student already has an active collaboration session');
+    error.existingCollaborationId = existingCollab.collaboration_session_id;
+    throw error;
   }
 
   const collabSessionId = generateCollaborationSessionId();

@@ -9,7 +9,12 @@ import { AppError } from '../utils/errorHandler.js';
 import crypto from 'crypto';
 
 const logger = createLogger();
-const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD;
+
+// Get password dynamically to ensure Parameter Store values are loaded
+function getDashboardPassword() {
+  return process.env.DASHBOARD_PASSWORD;
+}
+
 const TOKEN_SECRET = process.env.SESSION_SECRET || 'default-secret-change-in-production';
 
 /**
@@ -18,7 +23,14 @@ const TOKEN_SECRET = process.env.SESSION_SECRET || 'default-secret-change-in-pro
  * @returns {string} JWT-like token
  */
 export function generateDashboardToken(password) {
-  if (password !== DASHBOARD_PASSWORD) {
+  const expectedPassword = getDashboardPassword();
+  
+  if (!expectedPassword) {
+    logger.error('DASHBOARD_PASSWORD not set in environment variables');
+    throw new AppError('Dashboard authentication not configured', 500, 'CONFIG_ERROR');
+  }
+  
+  if (password !== expectedPassword) {
     throw new AppError('Invalid password', 401, 'AUTH_ERROR');
   }
 

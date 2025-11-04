@@ -145,6 +145,21 @@ export function Chat({
         return;
       }
 
+      // If word problem detected, replace the image message with text
+      if (response.is_word_problem && response.word_problem_text && imageFile) {
+        // Remove the last message (the image one) and replace with word problem text
+        setMessages(prev => {
+          const updated = [...prev];
+          // Replace the last student message (the image one) with the word problem text
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            message: response.word_problem_text,
+            imageUrl: null // Remove image, show text instead
+          };
+          return updated;
+        });
+      }
+
       // Update current problem info
       const problemInfo = {
         problemId: response.problem_id,

@@ -83,6 +83,14 @@ export async function uploadImageToS3(imageBuffer, originalName) {
     };
   } catch (error) {
     logger.error('Error uploading image to S3:', error);
+    
+    // Provide helpful error message if bucket doesn't exist
+    if (error.name === 'NoSuchBucket' || error.Code === 'NoSuchBucket' || error.message?.includes('does not exist')) {
+      const helpfulMessage = `S3 bucket '${BUCKET_NAME}' not found. Run 'npm run setup:aws' in the backend directory to create it.`;
+      logger.error(helpfulMessage);
+      throw new AWSError(helpfulMessage, error);
+    }
+    
     throw new AWSError('Failed to upload image to S3', error);
   }
 }
@@ -158,6 +166,196 @@ export async function extractTextWithTextract(imageBuffer) {
 }
 
 /**
+ * Correct grammar and OCR errors in text
+ * Fixes split words, run-on words, punctuation, and common OCR mistakes
+ * @param {string} text - Text to correct
+ * @returns {string} Corrected text
+ */
+export function correctGrammar(text) {
+  if (!text || text.trim().length === 0) {
+    return text;
+  }
+
+  let result = text;
+
+  // FIRST: Merge incorrectly split words (OCR errors)
+  const wordMerges = [
+    // Fix common splits
+    { pattern: /\b(wh)\s+(at)\b/gi, replacement: 'what' },
+    { pattern: /\b(in)\s+(formati)\s+(on)\b/gi, replacement: 'information' },
+    { pattern: /\b(in)\s+(formation)\b/gi, replacement: 'information' },
+    { pattern: /\b(ab)\s+(out)\b/gi, replacement: 'about' },
+    { pattern: /\b(be)\s+(tween)\b/gi, replacement: 'between' },
+    { pattern: /\b(underst)\s+(and)\b/gi, replacement: 'understand' },
+    { pattern: /\b(comm)\s+(on)\b/gi, replacement: 'common' },
+    { pattern: /\b(unkn)\s+(own)\b/gi, replacement: 'unknown' },
+    { pattern: /\b(th)\s+(at)\b/gi, replacement: 'that' },
+    { pattern: /\b(c)\s+(all)\b/gi, replacement: 'call' },
+    { pattern: /\b(f)\s+(or)\b/gi, replacement: 'for' },
+    { pattern: /\b(be)\s+(cause)\b/gi, replacement: 'because' },
+    { pattern: /\b(formati)\s+(on)\b/gi, replacement: 'formation' },
+    { pattern: /\b(to)\s+(gether)\b/gi, replacement: 'together' },
+    { pattern: /\b(equati)\s+(on)\b/gi, replacement: 'equation' },
+    { pattern: /\b(pr)\s+(ice)\b/gi, replacement: 'price' },
+    { pattern: /\b(sec)\s+(ond)\b/gi, replacement: 'second' },
+    { pattern: /\b(fir)\s+(st)\b/gi, replacement: 'first' },
+    { pattern: /\b(thi)\s+(rd)\b/gi, replacement: 'third' },
+    { pattern: /\b(les)\s+(s)\b/gi, replacement: 'less' },
+    { pattern: /\b(mor)\s+(e)\b/gi, replacement: 'more' },
+    { pattern: /\b(tim)\s+(es)\b/gi, replacement: 'times' },
+    { pattern: /\b(cos)\s+(t)\b/gi, replacement: 'cost' },
+    { pattern: /\b(bo)\s+(ok)\b/gi, replacement: 'book' },
+  ];
+
+  wordMerges.forEach(({ pattern, replacement }) => {
+    result = result.replace(pattern, replacement);
+  });
+
+  // Fix common split patterns (general rules)
+  // Fix "word ion" pattern (e.g., "formati on" → "formation")
+  result = result.replace(/\b([a-z]{4,})\s+(ion)\b/gi, (match, p1) => {
+    // Only merge if it forms a valid word ending
+    if (p1.endsWith('at') || p1.endsWith('it') || p1.endsWith('iz')) {
+      return p1 + 'ion';
+    }
+    return match;
+  });
+
+  // Fix "word tion" pattern
+  result = result.replace(/\b([a-z]{3,})\s+(tion)\b/gi, (match, p1) => {
+    if (p1.endsWith('a') || p1.endsWith('e') || p1.endsWith('i') || p1.endsWith('o') || p1.endsWith('u')) {
+      return p1 + 'tion';
+    }
+    return match;
+  });
+
+  // SECOND: Fix run-on words (add spaces where missing)
+  // Fix camelCase
+  result = result.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+  // Fix digit-letter boundaries (but preserve mathematical expressions)
+  // Only split if it's clearly a word boundary (e.g., "10lessthan" not "3x")
+  result = result.replace(/(\d)([a-z]{3,})/g, '$1 $2'); // Digit followed by 3+ lowercase letters
+  result = result.replace(/([a-z]{3,})(\d)/g, '$1 $2'); // 3+ lowercase letters followed by digit
+
+  // Fix punctuation spacing (add space after, but not before)
+  result = result.replace(/([.,;:!?])([a-zA-Z])/g, '$1 $2');
+
+  // Fix common run-on words
+  const commonWords = [
+    'threetimes', 'twotimes', 'firstbook', 'secondbook', 'thirdbook',
+    'lessthan', 'morethan', 'greaterthan', 'theprice', 'thecost', 'thefirst', 'thesecond',
+    'andit', 'andthe', 'itis', 'itcost', 'itcosts',
+    'represent', 'equation', 'form', 'get', 'also', 'know', 'that', 'second', 'costs',
+    'times', 'price', 'cost', 'book', 'books', 'first', 'third', 'fourth', 'fifth',
+    'the', 'and', 'of', 'it', 'is', 'than', 'less', 'more', 'we', 'if', 'in', 'this',
+    'can', 'how', 'what', 'when', 'where', 'why', 'which', 'who', 'will', 'would',
+    'should', 'could', 'may', 'might', 'must', 'have', 'has', 'had', 'do', 'does', 'did',
+    'not', 'but', 'or', 'so', 'to', 'for', 'with', 'from', 'by', 'at', 'on', 'up', 'out',
+    'about', 'into', 'over', 'after', 'under', 'again', 'further', 'then', 'once',
+    'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'both', 'few', 'more',
+    'most', 'other', 'some', 'such', 'no', 'nor', 'own', 'same', 'than', 'too', 'very',
+    'can', 'just', 'should', 'now', 'take', 'multiply', 'subtract'
+  ];
+
+  // Process longer words first
+  const sortedWords = commonWords.sort((a, b) => b.length - a.length);
+  sortedWords.forEach(word => {
+    const regex = new RegExp(`([a-zA-Z0-9])(${word})(?![a-zA-Z])`, 'gi');
+    result = result.replace(regex, `$1 ${word}`);
+  });
+
+  // Fix short words followed by longer words
+  const shortWords = ['if', 'we', 'now', 'so', 'to', 'in', 'on', 'at', 'is', 'it', 'as', 'be', 'by', 'or', 'an', 'am'];
+  shortWords.forEach(word => {
+    const regex = new RegExp(`([^a-zA-Z]|^)(${word})([a-z]{2,})`, 'gi');
+    result = result.replace(regex, `$1${word} $3`);
+  });
+
+  // Clean up multiple spaces
+  result = result.replace(/\s+/g, ' ');
+
+  // Fix capitalization at sentence start
+  result = result.replace(/(^|\.\s+)([a-z])/g, (match, prefix, letter) => {
+    return prefix + letter.toUpperCase();
+  });
+
+  return result.trim();
+}
+
+/**
+ * Detect if extracted text is a word problem (contains narrative/context)
+ * @param {string} text - Extracted text
+ * @returns {Promise<Object>} Detection result with isWordProblem boolean and cleaned text
+ */
+export async function detectAndExtractWordProblem(text) {
+  if (!text || text.trim().length === 0) {
+    return { isWordProblem: false, text: text };
+  }
+
+  try {
+    const prompt = `Analyze this text and determine if it's a word problem (a math problem with narrative context, story, or real-world scenario).
+
+Text: "${text}"
+
+If this is a WORD PROBLEM (contains narrative, story, context words like "has", "bought", "sold", "how many", "how much", etc.), respond with:
+"WORD_PROBLEM: [the complete word problem text with all context and narrative]"
+
+If this is a PURE MATH PROBLEM (just equations, numbers, and mathematical expressions without narrative context), respond with:
+"MATH_PROBLEM: [the mathematical content]"`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem classifier. Determine if text is a word problem (with narrative) or pure math problem.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 500,
+      temperature: 0.3
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    if (responseText.startsWith('WORD_PROBLEM:')) {
+      const wordProblemText = responseText.replace('WORD_PROBLEM:', '').trim();
+      logger.debug('Detected word problem, extracted full text');
+      
+      // Correct grammar and OCR errors in the word problem text
+      const correctedText = correctGrammar(wordProblemText || text);
+      
+      return {
+        isWordProblem: true,
+        text: correctedText
+      };
+    }
+    
+    // Not a word problem or pure math problem - return original text
+    return { isWordProblem: false, text: text };
+  } catch (error) {
+    logger.error('Error detecting word problem:', error);
+    // Fallback: check for common word problem indicators
+    const wordProblemIndicators = [
+      /\b(has|have|bought|sold|spent|earned|left|remaining|total|altogether)\b/i,
+      /\b(how many|how much|how long|how far)\b/i,
+      /\b(if|when|then|after|before)\b.*\b(how)\b/i,
+      /\d+\s*(years?|months?|days?|hours?|minutes?|dollars?|cents?)/i
+    ];
+    
+    const hasWordProblemIndicators = wordProblemIndicators.some(pattern => pattern.test(text));
+    return {
+      isWordProblem: hasWordProblemIndicators,
+      text: text
+    };
+  }
+}
+
+/**
  * Extract text from image using OpenAI Vision API
  * @param {Buffer} imageBuffer - Image buffer
  * @returns {Promise<Object>} Extraction result
@@ -176,7 +374,7 @@ export async function extractTextWithVision(imageBuffer) {
           content: [
             {
               type: 'text',
-              text: 'Extract all math problems from this image. If there is only one problem, return it. If there are multiple problems, return them numbered (1, 2, 3...), one per line. If this image does NOT contain a math problem, respond with "NO_MATH_PROBLEM". Return only the mathematical content, nothing else.'
+              text: 'Extract all math problems from this image. If there is only one problem, return it. If there are multiple problems, return them numbered (1, 2, 3...), one per line. If this image does NOT contain a math problem, respond with "NO_MATH_PROBLEM".\n\nFor WORD PROBLEMS (problems with narrative/story context), return the COMPLETE problem text including all words and context. For pure mathematical expressions, return only the mathematical content.'
             },
             {
               type: 'image_url',

@@ -15,9 +15,62 @@
 }
 
 .session-list-container h2 {
-  margin: 0 0 20px 0;
+  margin: 0 0 16px 0;
   color: #333;
   font-size: 20px;
+}
+
+.session-list-container .search-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.session-list-container .search-input {
+  width: 100%;
+  padding: 10px 16px;
+  padding-right: 36px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.session-list-container .search-input:focus {
+  outline: none;
+  border-color: var(--phoenix-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.session-list-container .search-input::placeholder {
+  color: #999;
+}
+
+.session-list-container .clear-search-btn {
+  position: absolute;
+  right: 8px;
+  background: #999;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s;
+}
+
+.session-list-container .clear-search-btn:hover {
+  background: #666;
+  transform: scale(1.1);
 }
 
 .sessions-list {

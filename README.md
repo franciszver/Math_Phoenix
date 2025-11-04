@@ -297,4 +297,5 @@ Required environment variables (see `.env.example`):
 - `S3_BUCKET_NAME` - S3 bucket name for image uploads
 - `DYNAMODB_TABLE_NAME` - DynamoDB table name for sessions (default: `math-phoenix-sessions`)
 - `DYNAMODB_ML_TABLE_NAME` - DynamoDB table name for ML data (optional, default: `math-phoenix-ml-data`)
+- `CLOUDFRONT_URL` - CloudFront distribution URL for frontend (optional, default: `https://d3rfhzm2ptw0c2.cloudfront.net`)
 

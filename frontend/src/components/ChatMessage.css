@@ -93,14 +93,30 @@
 .message-text {
   line-height: 1.5;
   word-wrap: break-word;
+  white-space: pre-wrap;
+  word-spacing: 0.1em;
+  font-style: normal; /* Ensure text is not italicized by default */
+}
+
+/* Prevent accidental italicization from any CSS inheritance */
+.message-text span {
+  font-style: normal;
 }
 
 .message-text .katex {
   font-size: 1.1em;
+  margin: 0 0.2em; /* Add spacing around inline math */
+  display: inline-block; /* Ensure proper spacing */
 }
 
 .message-text .katex-display {
   margin: 0.5em 0;
+}
+
+/* Ensure proper spacing around inline math elements */
+.message-text span + .katex,
+.message-text .katex + span {
+  margin-left: 0.2em;
 }
 
 .latex-preview {

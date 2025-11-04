@@ -13,6 +13,7 @@ export function SessionListView({ token, onError, initialSelectedSession, onSess
   const [sessionDetails, setSessionDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadSessions();
@@ -110,6 +111,20 @@ export function SessionListView({ token, onError, initialSelectedSession, onSess
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  /**
+   * Filter sessions by session code
+   */
+  const filteredSessions = (sessions, query) => {
+    if (!query || query.trim() === '') {
+      return sessions;
+    }
+
+    const searchTerm = query.toUpperCase().trim();
+    return sessions.filter(session => 
+      session.session_code?.toUpperCase().includes(searchTerm)
+    );
+  };
+
   if (isLoading) {
     return <div className="loading-sessions">Loading sessions...</div>;
   }
@@ -118,11 +133,31 @@ export function SessionListView({ token, onError, initialSelectedSession, onSess
     <div className="session-list-view">
       <div className="session-list-container">
         <h2>Sessions</h2>
+        <div className="search-container">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search by session code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="clear-search-btn"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
         <div className="sessions-list">
           {sessions.length === 0 ? (
             <div className="no-sessions">No sessions found</div>
+          ) : filteredSessions(sessions, searchQuery).length === 0 ? (
+            <div className="no-sessions">No sessions found matching "{searchQuery}"</div>
           ) : (
-            sessions.map((session) => (
+            filteredSessions(sessions, searchQuery).map((session) => (
               <div
                 key={session.session_code}
                 className={`session-item ${selectedSession === session.session_code ? 'selected' : ''}`}
@@ -235,6 +270,7 @@ function ProblemCard({ problem, sessionCode, onUpdateTags, token }) {
   const [showSimilarProblems, setShowSimilarProblems] = useState(false);
   const [similarProblems, setSimilarProblems] = useState([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [existingCollaboration, setExistingCollaboration] = useState(null);
   const assessment = problem.learning_assessment;
   
   // Check if student needs help (confidence < 1.0)
@@ -279,12 +315,48 @@ function ProblemCard({ problem, sessionCode, onUpdateTags, token }) {
         token
       );
 
-      // Navigate to collaboration workspace
-      window.location.href = response.collaboration_url || `/collaboration/${response.collaboration_session_id}`;
+      // Navigate to collaboration workspace as TEACHER
+      // Always start as teacher when coming from Similar Problems popup
+      const collaborationUrl = response.collaboration_url || `/collaboration/${response.collaboration_session_id}`;
+      // Ensure teacher context is preserved by including token in URL or localStorage
+      // The token is already in localStorage from dashboard, but we'll ensure it's explicitly set
+      if (token) {
+        localStorage.setItem('dashboardToken', token);
+      }
+      // Navigate to collaboration workspace - CollaborationWorkspace will detect teacher via token
+      window.location.href = collaborationUrl;
     } catch (error) {
       console.error('Error starting collaboration:', error);
-      alert('Failed to start collaboration. Please try again.');
+      
+      // Check if there's an existing collaboration
+      if (error.response?.status === 409 && error.response?.data?.error === 'existing_collaboration') {
+        // Show existing collaboration info with button to navigate
+        setExistingCollaboration({
+          collaboration_session_id: error.response.data.collaboration_session_id,
+          collaboration_url: error.response.data.collaboration_url,
+          message: error.response.data.message
+        });
+      } else {
+        alert('Failed to start collaboration. Please try again.');
+      }
     }
+  };
+
+  const handleGoToExistingCollaboration = () => {
+    if (existingCollaboration && token) {
+      // Ensure teacher context is preserved - CRITICAL for teacher mode
+      localStorage.setItem('dashboardToken', token);
+      // Clear any student session code from localStorage to prevent confusion
+      // Teacher should not have student session code when accessing collaboration
+      localStorage.removeItem('mathPhoenixSession');
+      // Navigate to existing collaboration workspace
+      // CollaborationWorkspace will detect teacher via dashboardToken
+      window.location.href = existingCollaboration.collaboration_url;
+    }
+  };
+
+  const handleCloseExistingCollaboration = () => {
+    setExistingCollaboration(null);
   };
 
   return (
@@ -362,6 +434,33 @@ function ProblemCard({ problem, sessionCode, onUpdateTags, token }) {
         isLoading={loadingSimilar}
         problems={similarProblems}
       />
+      
+      {/* Existing Collaboration Modal */}
+      {existingCollaboration && (
+        <div className="similar-problems-modal-overlay" onClick={handleCloseExistingCollaboration}>
+          <div className="similar-problems-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Active Collaboration</h2>
+              <button className="close-btn" onClick={handleCloseExistingCollaboration}>×</button>
+            </div>
+            <div className="modal-content">
+              <p style={{ marginBottom: '20px', color: '#666' }}>
+                {existingCollaboration.message}
+              </p>
+              <p style={{ marginBottom: '20px', fontSize: '0.9rem', color: '#888' }}>
+                Collaboration ID: {existingCollaboration.collaboration_session_id}
+              </p>
+              <button
+                className="select-btn"
+                onClick={handleGoToExistingCollaboration}
+                style={{ width: '100%' }}
+              >
+                Go to Collaboration Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Learning Assessment Display */}
       {assessment && (

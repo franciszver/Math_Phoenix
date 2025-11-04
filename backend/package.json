@@ -10,7 +10,12 @@
     "verify": "node scripts/verify-setup.js",
     "verify:api": "node scripts/verify-setup.js --test-api",
     "test:api": "node scripts/test-api.js",
-    "generate-demo-data": "node scripts/generate-demo-data.js"
+    "generate-demo-data": "node scripts/generate-demo-data.js",
+    "setup:dynamodb": "node scripts/setup-dynamodb.js",
+    "setup:aws": "node scripts/setup-aws.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.490.0",

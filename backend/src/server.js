@@ -1,4 +1,7 @@
-import './config/env.js'; // Load environment variables first
+// Load .env first
+import './config/env.js';
+
+// Import express and other modules
 import express from 'express';
 import cors from 'cors';
 import { createLogger } from './utils/logger.js';
@@ -32,8 +35,30 @@ const PORT = process.env.PORT || 3001;
 const logger = createLogger();
 
 // Middleware
+// CORS configuration - allow CloudFront and localhost for development
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.CLOUDFRONT_URL || 'https://d3rfhzm2ptw0c2.cloudfront.net', // CloudFront URL
+  'http://localhost:5173' // Local development
+].filter(Boolean); // Remove undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In production, be strict; in dev, allow localhost
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error('Not allowed by CORS'));
+      } else {
+        callback(null, true); // Allow in development
+      }
+    }
+  },
   credentials: true
 }));
 // Increase body size limit for canvas operations (up to 10MB)
@@ -96,6 +121,7 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
+// Start the server
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
