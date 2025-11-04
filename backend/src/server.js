@@ -7,6 +7,14 @@ import { getSessionHandler, createOrGetSessionHandler } from './handlers/session
 import { submitProblemHandler } from './handlers/problemHandler.js';
 import { sendChatMessageHandler } from './handlers/chatHandler.js';
 import { upload, validateUpload } from './middleware/upload.js';
+import { 
+  loginHandler, 
+  getAggregateStatsHandler, 
+  getAllSessionsHandler, 
+  getSessionDetailsHandler,
+  updateProblemTagsHandler 
+} from './handlers/dashboardHandler.js';
+import { requireDashboardAuth } from './middleware/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,6 +43,16 @@ app.post('/api/sessions/:code/problems', upload.single('image'), submitProblemHa
 
 // Chat routes
 app.post('/api/sessions/:code/chat', sendChatMessageHandler);
+
+// Dashboard routes
+// Login (no auth required)
+app.post('/api/dashboard/login', loginHandler);
+
+// Protected dashboard routes (require authentication)
+app.get('/api/dashboard/stats/aggregate', requireDashboardAuth, getAggregateStatsHandler);
+app.get('/api/dashboard/sessions', requireDashboardAuth, getAllSessionsHandler);
+app.get('/api/dashboard/sessions/:code', requireDashboardAuth, getSessionDetailsHandler);
+app.put('/api/dashboard/sessions/:code/problems/:problemId', requireDashboardAuth, updateProblemTagsHandler);
 
 // 404 handler (must come before error handler)
 app.use((req, res) => {

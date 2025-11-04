@@ -57,7 +57,7 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Track **steps**: step number, tutor prompt, student response, hint usage, progress tracking.
 
 ### Math Rendering
-- [ ] Integrate **KaTeX** for equation rendering in chat UI (frontend - deferred to Phase 2).
+- [x] Integrate **KaTeX** for equation rendering in chat UI (frontend - completed in Phase 2).
 
 ### Session Management
 - [x] Generate **short alphanumeric session codes** (6 chars).
@@ -71,17 +71,19 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 ## Phase 2 – User Experience & Compliance
 
 ### Web Interface
-- [ ] Build **minimalist chat UI** (React/Next.js or similar).
-- [ ] Add **text input + image upload** components.
-- [ ] Add **session token entry** form to resume sessions.
-- [ ] Display **consent popup** at session start.
+- [x] Build **minimalist chat UI** (React/Vite).
+- [x] Add **text input + image upload** components.
+- [x] Add **session token entry** form to resume sessions.
+- [x] Display **consent popup** at session start.
+- [x] Integrate **KaTeX** for equation rendering in chat messages.
+- [x] Implement session persistence (localStorage + URL parameters).
 
 ### Teacher Dashboard
-- [ ] Build **password‑protected dashboard** (single shared password).
-- [ ] Implement **toggle** between aggregate and per‑session views.
-- [ ] Display per‑session stats: problems attempted, hints used, categories, difficulty.
-- [ ] Display aggregate stats: total problems, total hints, distribution by category.
-- [ ] Add **teacher override** for problem tags.
+- [x] Build **password‑protected dashboard** (single shared password).
+- [x] Implement **toggle** between aggregate and per‑session views.
+- [x] Display per‑session stats: problems attempted, hints used, categories, difficulty.
+- [x] Display aggregate stats: total problems, total hints, distribution by category.
+- [x] Add **teacher override** for problem tags.
 
 ---
 
