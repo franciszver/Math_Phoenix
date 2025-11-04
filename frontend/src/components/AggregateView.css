@@ -26,7 +26,7 @@
 .stat-value {
   font-size: 36px;
   font-weight: bold;
-  color: #667eea;
+  color: var(--phoenix-primary);
   margin-bottom: 8px;
 }
 
@@ -330,7 +330,7 @@
 }
 
 .high-bar {
-  background: linear-gradient(90deg, #4CAF50, #66BB6A);
+  background: var(--phoenix-gradient);
 }
 
 .medium-bar {

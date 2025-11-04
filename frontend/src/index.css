@@ -5,7 +5,36 @@
 
   color-scheme: light;
   color: #333;
-  background-color: #f5f5f5;
+  background-color: #FFF8F0;
+
+  /* Phoenix Color Palette */
+  --phoenix-primary: #FF6B35;
+  --phoenix-primary-light: #F7931E;
+  --phoenix-secondary: #FF8C42;
+  --phoenix-accent: #FFD700;
+  --phoenix-accent-alt: #FFC107;
+  --phoenix-dark: #C0392B;
+  
+  /* Phoenix Gradients */
+  --phoenix-gradient: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+  --phoenix-gradient-fire: linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFD700 100%);
+  --phoenix-gradient-subtle: linear-gradient(135deg, #FFF8F0 0%, #FAF5ED 100%);
+  
+  /* Background Colors */
+  --bg-warm-main: #FFF8F0;
+  --bg-warm-alt: #FAF5ED;
+  --bg-warm-card: #FFFFFF;
+  --bg-warm-message: #FFF5E6;
+  --bg-warm-gray: #F5F0E8;
+  
+  /* Text Colors */
+  --text-primary: #333;
+  --text-secondary: #666;
+  --text-warm: #856404;
+  
+  /* Legacy colors (for smooth transition) */
+  --legacy-green: #4CAF50;
+  --legacy-green-hover: #45a049;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;

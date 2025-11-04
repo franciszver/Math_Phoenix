@@ -3,8 +3,8 @@
   flex-direction: row;
   gap: 1rem;
   padding: 1rem;
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: var(--bg-warm-card);
+  border-top: 1px solid rgba(255, 107, 53, 0.2);
   align-items: center;
 }
 
@@ -45,22 +45,22 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: #fafafa;
+  background: var(--bg-warm-gray);
 }
 
 .file-drop-zone:hover {
-  border-color: #4CAF50;
-  background: #f0f8f0;
+  border-color: var(--phoenix-primary);
+  background: var(--bg-warm-message);
 }
 
 .file-drop-zone.dragging {
-  border-color: #4CAF50;
-  background: #e8f5e9;
+  border-color: var(--phoenix-primary);
+  background: var(--bg-warm-message);
 }
 
 .file-drop-zone.has-file {
-  border-color: #4CAF50;
-  background: #e8f5e9;
+  border-color: var(--phoenix-primary);
+  background: var(--bg-warm-message);
   border-style: solid;
 }
 
@@ -123,20 +123,23 @@
 
 .submit-button {
   padding: 0.75rem 1.5rem;
-  background: #4CAF50;
+  background: var(--phoenix-gradient);
   color: white;
   border: none;
   border-radius: 6px;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   white-space: nowrap;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
 
 .submit-button:hover:not(:disabled) {
-  background: #45a049;
+  background: var(--phoenix-gradient-fire);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+  transform: translateY(-1px);
 }
 
 .submit-button:disabled {
