@@ -74,8 +74,19 @@ export function ChatMessage({ message, speaker, latex, imageUrl, isStreakFeedbac
 
   return (
     <div className={`chat-message ${speaker} ${isStreakFeedback ? 'streak-feedback' : ''} ${isError ? 'error-message' : ''}`}>
+      {speaker === 'tutor' && (
+        <img 
+          src="/assets/phoenix-tutor-avatar.png" 
+          alt="Phoenix Tutor" 
+          className="tutor-avatar"
+          onError={(e) => {
+            // Hide avatar if image fails to load
+            e.target.style.display = 'none';
+          }}
+        />
+      )}
       <div className="message-content">
-        {speaker === 'tutor' && <div className="message-label">{isStreakFeedback ? '🌟 Streak Update' : isError ? '⚠️ Error' : 'Tutor'}</div>}
+        {speaker === 'tutor' && <div className="message-label">{isStreakFeedback ? '🔥 Streak Update' : isError ? '⚠️ Error' : 'Phoenix'}</div>}
         {speaker === 'student' && <div className="message-label">You</div>}
         {imageUrl && (
           <div className="message-image">

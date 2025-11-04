@@ -12,7 +12,7 @@
 }
 
 .session-code-modal {
-  background: white;
+  background: var(--bg-warm-card);
   border-radius: 12px;
   padding: 30px;
   max-width: 400px;
@@ -64,7 +64,7 @@
   font-size: 32px;
   font-weight: bold;
   letter-spacing: 4px;
-  color: #4CAF50;
+  color: var(--phoenix-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -78,7 +78,7 @@
 .copy-button {
   width: 100%;
   padding: 12px;
-  background: #4CAF50;
+  background: var(--phoenix-gradient);
   color: white;
   border: none;
   border-radius: 8px;
@@ -86,14 +86,17 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
 
 .copy-button:hover {
-  background: #45a049;
+  background: var(--phoenix-gradient-fire);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+  transform: translateY(-1px);
 }
 
 .copy-button.copied {
-  background: #4CAF50;
+  background: var(--phoenix-gradient);
 }
 
 .copy-button.copied::before {

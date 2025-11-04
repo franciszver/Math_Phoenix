@@ -1,7 +1,7 @@
 .app-container {
   width: 100%;
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-warm-main);
 }
 
 .loading {
@@ -10,7 +10,7 @@
   justify-content: center;
   height: 100vh;
   font-size: 1.2rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error-banner {
@@ -18,7 +18,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background: #f44336;
+  background: var(--phoenix-gradient-fire);
   color: white;
   padding: 1rem;
   text-align: center;

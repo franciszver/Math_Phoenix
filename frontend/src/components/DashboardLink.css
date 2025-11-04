@@ -13,9 +13,9 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #4CAF50;
+  background: var(--phoenix-gradient);
   border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3), 0 2px 4px rgba(255, 107, 53, 0.2);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -25,9 +25,9 @@
 }
 
 .dashboard-link-button:hover {
-  background: #45a049;
+  background: var(--phoenix-gradient-fire);
   transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4), 0 3px 6px rgba(255, 107, 53, 0.3);
 }
 
 .dashboard-link-button:active {

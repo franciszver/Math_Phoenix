@@ -434,7 +434,6 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
       )}
       
       <div className="chat-header">
-        <h2>Math Phoenix</h2>
         {sessionCode && (
           <div className="session-info">
             <span>Session: {sessionCode}</span>
@@ -452,6 +451,7 @@ export function Chat({ sessionCode, initialMessages = [], hasActiveProblem = fal
             )}
           </div>
         )}
+        <h2>Math Phoenix</h2>
         {sessionCode && (
           <ChatMenu
             sessionCode={sessionCode}

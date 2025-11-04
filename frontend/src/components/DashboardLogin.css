@@ -3,29 +3,31 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--phoenix-gradient-fire);
   padding: 20px;
 }
 
 .login-container {
-  background: white;
+  background: var(--bg-warm-card);
   border-radius: 12px;
   padding: 40px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(255, 107, 53, 0.3);
   width: 100%;
   max-width: 400px;
+  border: 2px solid var(--phoenix-primary);
 }
 
 .login-container h1 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--phoenix-primary);
   font-size: 28px;
   text-align: center;
+  font-weight: 700;
 }
 
 .login-subtitle {
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 30px;
   font-size: 14px;
 }
@@ -54,39 +56,44 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--phoenix-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
 }
 
 .form-group input:disabled {
-  background-color: #f5f5f5;
+  background-color: var(--bg-warm-gray);
   cursor: not-allowed;
 }
 
 .error-message {
-  background-color: #fee;
-  color: #c33;
+  background-color: rgba(192, 57, 43, 0.1);
+  color: var(--phoenix-dark);
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 20px;
   font-size: 14px;
   text-align: center;
+  border: 1px solid var(--phoenix-dark);
 }
 
 .login-container button {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--phoenix-gradient);
   color: white;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.3s;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
 
 .login-container button:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--phoenix-gradient-fire);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+  transform: translateY(-1px);
 }
 
 .login-container button:disabled {

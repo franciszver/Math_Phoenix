@@ -1,12 +1,12 @@
 .dashboard {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-warm-main);
 }
 
 .dashboard-header {
-  background: white;
+  background: var(--phoenix-gradient-fire);
   padding: 20px 30px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -16,8 +16,9 @@
 
 .dashboard-header h1 {
   margin: 0;
-  color: #333;
+  color: white;
   font-size: 24px;
+  font-weight: 700;
 }
 
 .dashboard-controls {
@@ -29,7 +30,7 @@
 .view-toggle {
   display: flex;
   gap: 0;
-  background: #f0f0f0;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -38,7 +39,7 @@
   padding: 10px 20px;
   border: none;
   background: transparent;
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -46,19 +47,21 @@
 }
 
 .view-toggle button:hover {
-  background: #e0e0e0;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
 .view-toggle button.active {
-  background: #667eea;
+  background: rgba(255, 255, 255, 0.3);
   color: white;
+  font-weight: 600;
 }
 
 .logout-btn {
   padding: 10px 20px;
-  background: #dc3545;
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -67,7 +70,8 @@
 }
 
 .logout-btn:hover {
-  background: #c82333;
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .dashboard-content {

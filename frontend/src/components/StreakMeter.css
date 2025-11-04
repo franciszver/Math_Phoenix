@@ -48,10 +48,10 @@
   transform: translateX(-50%);
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #4CAF50;
+  background: var(--phoenix-gradient);
   color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
   animation: celebrationPop 0.5s ease;
   z-index: 1000;
   white-space: nowrap;

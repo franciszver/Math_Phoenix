@@ -31,9 +31,9 @@ export function StreakMeter({ progress, completed, onCelebrate }) {
 
   // Determine color based on progress
   const getColor = () => {
-    if (animatedProgress >= 80) return '#4CAF50'; // Green
-    if (animatedProgress >= 50) return '#FF9800'; // Orange
-    if (animatedProgress >= 20) return '#FFC107'; // Yellow
+    if (animatedProgress >= 80) return '#FF6B35'; // Phoenix primary
+    if (animatedProgress >= 50) return '#FF8C42'; // Phoenix secondary
+    if (animatedProgress >= 20) return '#FFD700'; // Phoenix accent
     return '#9E9E9E'; // Gray
   };
 

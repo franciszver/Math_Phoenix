@@ -2,21 +2,36 @@
   max-width: 400px;
   margin: 2rem auto;
   padding: 2rem;
-  background: white;
+  background: var(--bg-warm-card);
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(255, 107, 53, 0.15);
+  border: 1px solid rgba(255, 107, 53, 0.1);
 }
 
 .session-entry h2 {
   margin: 0 0 0.5rem 0;
-  color: #333;
+  color: var(--phoenix-primary);
   text-align: center;
   font-size: 2rem;
+  font-weight: 700;
+  font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+  background: var(--phoenix-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.phoenix-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  display: block;
+  object-fit: contain;
 }
 
 .subtitle {
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 2rem;
 }
 
@@ -50,15 +65,16 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: var(--phoenix-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
 }
 
 .form-group input.error {
-  border-color: #f44336;
+  border-color: var(--phoenix-dark);
 }
 
 .error-message {
-  color: #f44336;
+  color: var(--phoenix-dark);
   font-size: 0.875rem;
 }
 
@@ -80,21 +96,26 @@
 }
 
 .btn-primary {
-  background: #4CAF50;
+  background: var(--phoenix-gradient);
   color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
 
 .btn-primary:hover {
-  background: #45a049;
+  background: var(--phoenix-gradient-fire);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: #f5f5f5;
-  color: #333;
-  border: 1px solid #ddd;
+  background: var(--bg-warm-gray);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 107, 53, 0.2);
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
+  background: var(--bg-warm-message);
+  border-color: var(--phoenix-primary);
 }
 

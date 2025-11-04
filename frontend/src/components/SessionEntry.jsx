@@ -36,6 +36,15 @@ export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = nu
 
   return (
     <div className="session-entry">
+      <img 
+        src="/assets/math-phoenix-logo.png" 
+        alt="Math Phoenix Logo" 
+        className="phoenix-logo"
+        onError={(e) => {
+          // Hide logo if image fails to load
+          e.target.style.display = 'none';
+        }}
+      />
       <h2>Math Phoenix</h2>
       <p className="subtitle">AI-Powered Math Tutor</p>
       

@@ -61,7 +61,7 @@
 
 .transfer-result-correct {
   background: #e8f5e9;
-  border: 2px solid #4CAF50;
+  border: 2px solid var(--phoenix-primary);
 }
 
 .transfer-result-wrong {
@@ -79,7 +79,7 @@
 }
 
 .transfer-success-icon {
-  color: #4CAF50;
+  color: var(--phoenix-primary);
   font-size: 1.5rem;
   font-weight: bold;
 }
