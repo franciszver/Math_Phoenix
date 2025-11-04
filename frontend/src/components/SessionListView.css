@@ -161,6 +161,44 @@
   font-weight: 500;
 }
 
+.detail-actions {
+  display: flex;
+  align-items: flex-end;
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.view-session-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.view-session-btn:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.view-session-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.view-session-btn .btn-icon {
+  font-size: 16px;
+}
+
 .problems-list {
   margin-top: 20px;
 }

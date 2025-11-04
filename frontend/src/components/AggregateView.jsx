@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { getAggregateStats } from '../services/api';
+import { getAggregateStats, getAllSessions } from '../services/api';
 import './AggregateView.css';
 
 /**
  * Aggregate View Component
  * Displays overall statistics across all sessions
  */
-export function AggregateView({ token, onError }) {
+export function AggregateView({ token, onError, onNavigateToSession }) {
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionsWithFailures, setSessionsWithFailures] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -19,6 +21,28 @@ export function AggregateView({ token, onError }) {
     try {
       const data = await getAggregateStats(token);
       setStats(data);
+      
+      // Load sessions with MC quiz failures
+      if (data.learning && data.learning.mcQuizFailures > 0) {
+        const sessionsData = await getAllSessions(token);
+        const failures = (sessionsData.sessions || []).filter(
+          session => {
+            // Check if session has mcQuizFailures count
+            const hasFailures = session.learning && session.learning.mcQuizFailures > 0;
+            
+            // Also check if any problems have mc_quiz_failed flag (fallback)
+            const hasProblemFailures = session.problems && session.problems.some(
+              problem => problem.learning_assessment && problem.learning_assessment.mc_quiz_failed
+            );
+            
+            return hasFailures || hasProblemFailures;
+          }
+        );
+        console.log('Sessions with MC quiz failures:', failures.length, failures);
+        setSessionsWithFailures(failures);
+      } else {
+        setSessionsWithFailures([]);
+      }
     } catch (error) {
       console.error('Error loading aggregate stats:', error);
       onError?.(error.response?.data?.error?.message || 'Failed to load statistics');
@@ -121,15 +145,15 @@ export function AggregateView({ token, onError }) {
           <div className="stats-grid">
             <div className="stat-card learning-card">
               <div className="stat-value learning-confidence">
-                {Math.round(stats.learning.averageConfidence * 100)}%
+                {Math.round((stats.learning.averageConfidence ?? 0) * 100)}%
               </div>
               <div className="stat-label">Average Learning Confidence</div>
               <div className={`confidence-indicator ${
-                stats.learning.averageConfidence >= 0.8 ? 'high' :
-                stats.learning.averageConfidence >= 0.5 ? 'medium' : 'low'
+                (stats.learning.averageConfidence ?? 0) >= 0.8 ? 'high' :
+                (stats.learning.averageConfidence ?? 0) >= 0.5 ? 'medium' : 'low'
               }`}>
-                {stats.learning.averageConfidence >= 0.8 ? 'High' :
-                 stats.learning.averageConfidence >= 0.5 ? 'Medium' : 'Low'}
+                {(stats.learning.averageConfidence ?? 0) >= 0.8 ? 'High' :
+                 (stats.learning.averageConfidence ?? 0) >= 0.5 ? 'Medium' : 'Low'}
               </div>
             </div>
 
@@ -168,11 +192,58 @@ export function AggregateView({ token, onError }) {
 
           {stats.learning.mcQuizFailures > 0 && (
             <div className="mc-quiz-failure-alert">
-              <span className="alert-icon">🔴</span>
-              <span>
-                <strong>{stats.learning.mcQuizFailures}</strong> MC quiz failure{stats.learning.mcQuizFailures > 1 ? 's' : ''} detected.
-                These students failed the understanding assessment and may need additional attention.
-              </span>
+              <div className="alert-content">
+                <span className="alert-icon">🔴</span>
+                <span className="alert-text">
+                  <strong>{stats.learning.mcQuizFailures}</strong> MC quiz failure{stats.learning.mcQuizFailures > 1 ? 's' : ''} detected.
+                  These students failed the understanding assessment and may need additional attention.
+                </span>
+                <button 
+                  className="dropdown-toggle"
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  aria-expanded={showDropdown}
+                >
+                  {showDropdown ? '▼' : '▶'} View Sessions
+                </button>
+              </div>
+              {showDropdown && (
+                <div className="failure-dropdown">
+                  <div className="dropdown-header">
+                    <strong>Sessions Needing Attention {sessionsWithFailures.length > 0 && `(${sessionsWithFailures.length})`}</strong>
+                  </div>
+                  {sessionsWithFailures.length > 0 ? (
+                    <div className="dropdown-list">
+                      {sessionsWithFailures.map((session) => {
+                        const failureCount = session.learning?.mcQuizFailures || 
+                          (session.problems?.filter(p => p.learning_assessment?.mc_quiz_failed).length || 0);
+                        return (
+                          <button
+                            key={session.session_code}
+                            className="dropdown-item"
+                            onClick={() => {
+                              if (onNavigateToSession) {
+                                onNavigateToSession(session.session_code);
+                              }
+                            }}
+                          >
+                            <div className="session-item-content">
+                              <span className="session-code">{session.session_code}</span>
+                              <span className="session-meta">
+                                {new Date(session.created_at).toLocaleDateString()} • {failureCount} failure{failureCount > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <span className="navigate-icon">→</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="dropdown-empty">
+                      <span>No sessions found. This may be a data synchronization issue.</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

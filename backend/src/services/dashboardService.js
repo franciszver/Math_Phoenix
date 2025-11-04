@@ -203,7 +203,8 @@ export async function getAllSessionsWithStats() {
       learning: {
         averageConfidence: 0,
         totalAssessed: 0,
-        needsIntervention: false // Flag if average confidence < 0.5
+        needsIntervention: false, // Flag if average confidence < 0.5
+        mcQuizFailures: 0
       },
       problems: problems.map(p => {
         const assessment = p.learning_assessment || {};
@@ -215,7 +216,7 @@ export async function getAllSessionsWithStats() {
           created_at: p.created_at,
           completed: p.completed || false,
           learning_assessment: assessment.assessment_completed ? {
-            confidence: assessment.learning_confidence || 0,
+            confidence: (assessment.learning_confidence != null && !isNaN(assessment.learning_confidence)) ? assessment.learning_confidence : 0,
             mc_score: assessment.mc_score || 0,
             transfer_success: assessment.transfer_success,
             mc_questions: assessment.mc_questions || [],
@@ -243,7 +244,7 @@ export async function getAllSessionsWithStats() {
       const assessment = problem.learning_assessment;
       if (assessment && assessment.assessment_completed) {
         sessionStats.learning.totalAssessed++;
-        const confidence = assessment.learning_confidence || 0;
+        const confidence = (assessment.learning_confidence != null && !isNaN(assessment.learning_confidence)) ? assessment.learning_confidence : 0;
         confidences.push(confidence);
         
         // Track MC quiz failures
@@ -276,12 +277,34 @@ export async function getSessionDetails(sessionCode) {
     return null;
   }
 
+  // Transform problems to match the structure expected by frontend
+  const problems = (session.problems || []).map(p => {
+    const assessment = p.learning_assessment || {};
+    return {
+      problem_id: p.problem_id,
+      category: p.category || p.problem_info?.category || 'other',
+      difficulty: p.difficulty || p.problem_info?.difficulty || 'unknown',
+      hints_used: p.hints_used_total || 0,
+      created_at: p.created_at,
+      completed: p.completed || false,
+      learning_assessment: assessment.assessment_completed ? {
+        confidence: (assessment.learning_confidence != null && !isNaN(assessment.learning_confidence)) ? assessment.learning_confidence : 0,
+        mc_score: assessment.mc_score || 0,
+        transfer_success: assessment.transfer_success,
+        mc_questions: assessment.mc_questions || [],
+        transfer_problem: assessment.transfer_problem,
+        mc_quiz_failed: assessment.mc_quiz_failed || false,
+        mc_quiz_failed_at: assessment.mc_quiz_failed_at || null
+      } : null
+    };
+  });
+
   return {
     session_code: session.session_code,
     created_at: session.created_at,
     expires_at: session.expires_at,
     current_problem_id: session.current_problem_id,
-    problems: session.problems || [],
+    problems: problems,
     transcript: session.transcript || [],
     transcript_length: (session.transcript || []).length
   };

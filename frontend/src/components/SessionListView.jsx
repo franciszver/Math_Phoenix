@@ -6,7 +6,7 @@ import './SessionListView.css';
  * Session List View Component
  * Displays per-session statistics and allows editing problem tags
  */
-export function SessionListView({ token, onError }) {
+export function SessionListView({ token, onError, initialSelectedSession, onSessionSelected }) {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [sessionDetails, setSessionDetails] = useState(null);
@@ -16,6 +16,17 @@ export function SessionListView({ token, onError }) {
   useEffect(() => {
     loadSessions();
   }, [token]);
+
+  // Handle initial session selection from navigation
+  useEffect(() => {
+    if (initialSelectedSession && sessions.length > 0) {
+      const session = sessions.find(s => s.session_code === initialSelectedSession);
+      if (session && selectedSession !== initialSelectedSession) {
+        loadSessionDetails(initialSelectedSession);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSelectedSession, sessions]);
 
   const loadSessions = async () => {
     setIsLoading(true);
@@ -36,6 +47,10 @@ export function SessionListView({ token, onError }) {
       const details = await getSessionDetails(sessionCode, token);
       setSessionDetails(details);
       setSelectedSession(sessionCode);
+      // Notify parent that a session was selected (to clear initial selection)
+      if (onSessionSelected) {
+        onSessionSelected();
+      }
     } catch (error) {
       console.error('Error loading session details:', error);
       onError?.(error.response?.data?.error?.message || 'Failed to load session details');
@@ -129,7 +144,7 @@ export function SessionListView({ token, onError }) {
                   {session.learning && session.learning.totalAssessed > 0 && (
                     <>
                       <span className="learning-stat">
-                        {Math.round(session.learning.averageConfidence * 100)}% confidence
+                        {Math.round((session.learning.averageConfidence ?? 0) * 100)}% confidence
                       </span>
                       {session.learning.needsIntervention && (
                         <span className="intervention-flag">⚠️ Needs Support</span>
@@ -169,6 +184,18 @@ export function SessionListView({ token, onError }) {
                 <div className="detail-item">
                   <span className="detail-label">Messages:</span>
                   <span className="detail-value">{sessionDetails.transcript_length}</span>
+                </div>
+                <div className="detail-actions">
+                  <a
+                    href={`/?session=${sessionDetails.session_code}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="view-session-btn"
+                    title="Open student session in new window"
+                  >
+                    <span className="btn-icon">🔗</span>
+                    View Student Session
+                  </a>
                 </div>
               </div>
 
@@ -284,10 +311,10 @@ function ProblemCard({ problem, sessionCode, onUpdateTags }) {
           <div className="assessment-header">
             <span className="assessment-label">Learning Assessment</span>
             <span className={`confidence-badge ${
-              assessment.confidence >= 0.8 ? 'high' :
-              assessment.confidence >= 0.5 ? 'medium' : 'low'
+              (assessment.confidence ?? 0) >= 0.8 ? 'high' :
+              (assessment.confidence ?? 0) >= 0.5 ? 'medium' : 'low'
             }`}>
-              {Math.round(assessment.confidence * 100)}% Confidence
+              {Math.round((assessment.confidence ?? 0) * 100)}% Confidence
             </span>
           </div>
           

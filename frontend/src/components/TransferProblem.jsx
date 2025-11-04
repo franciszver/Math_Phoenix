@@ -70,7 +70,7 @@ export function TransferProblem({ transferProblem, sessionCode, onCompleted, dis
               </>
             )}
           </div>
-          {result.learning_confidence !== null && (
+          {result.learning_confidence != null && !isNaN(result.learning_confidence) && (
             <div className="transfer-confidence">
               Learning Confidence: {Math.round(result.learning_confidence * 100)}%
             </div>

@@ -9,6 +9,7 @@ import './Dashboard.css';
  */
 export function Dashboard({ token, onLogout, onError }) {
   const [viewMode, setViewMode] = useState('aggregate'); // 'aggregate' or 'sessions'
+  const [selectedSessionCode, setSelectedSessionCode] = useState(null);
 
   return (
     <div className="dashboard">
@@ -37,9 +38,21 @@ export function Dashboard({ token, onLogout, onError }) {
 
       <div className="dashboard-content">
         {viewMode === 'aggregate' ? (
-          <AggregateView token={token} onError={onError} />
+          <AggregateView 
+            token={token} 
+            onError={onError} 
+            onNavigateToSession={(sessionCode) => {
+              setSelectedSessionCode(sessionCode);
+              setViewMode('sessions');
+            }}
+          />
         ) : (
-          <SessionListView token={token} onError={onError} />
+          <SessionListView 
+            token={token} 
+            onError={onError} 
+            initialSelectedSession={selectedSessionCode}
+            onSessionSelected={() => setSelectedSessionCode(null)}
+          />
         )}
       </div>
     </div>
