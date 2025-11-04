@@ -9,7 +9,8 @@
     "test:vision": "node scripts/test-vision.js",
     "verify": "node scripts/verify-setup.js",
     "verify:api": "node scripts/verify-setup.js --test-api",
-    "test:api": "node scripts/test-api.js"
+    "test:api": "node scripts/test-api.js",
+    "generate-demo-data": "node scripts/generate-demo-data.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.490.0",

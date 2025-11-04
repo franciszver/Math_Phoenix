@@ -97,11 +97,43 @@ export async function submitProblem(sessionCode, text = null, imageFile = null) 
 }
 
 /**
+ * Select a problem from multiple detected problems
+ */
+export async function selectProblem(sessionCode, problemText, imageKey = null) {
+  const response = await api.post(`/api/sessions/${sessionCode}/problems/select`, {
+    problemText,
+    imageKey
+  });
+  return response.data;
+}
+
+/**
  * Send a chat message
  */
 export async function sendChatMessage(sessionCode, message) {
   const response = await api.post(`/api/sessions/${sessionCode}/chat`, {
     message
+  });
+  return response.data;
+}
+
+/**
+ * Submit MC answer
+ */
+export async function submitMCAnswer(sessionCode, questionId, answerIndex) {
+  const response = await api.post(`/api/sessions/${sessionCode}/chat`, {
+    mc_answer: answerIndex,
+    question_id: questionId
+  });
+  return response.data;
+}
+
+/**
+ * Submit transfer problem answer
+ */
+export async function submitTransferAnswer(sessionCode, answer) {
+  const response = await api.post(`/api/sessions/${sessionCode}/chat`, {
+    transfer_answer: answer
   });
   return response.data;
 }

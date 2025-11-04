@@ -5,7 +5,7 @@
 
 import '../config/env.js';
 import { s3Client, textractClient } from './aws.js';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { DetectDocumentTextCommand } from '@aws-sdk/client-textract';
 import { openai } from './openai.js';
 import { createLogger } from '../utils/logger.js';
@@ -176,7 +176,7 @@ export async function extractTextWithVision(imageBuffer) {
           content: [
             {
               type: 'text',
-              text: 'Extract the math problem or equation from this image. Return only the mathematical content, nothing else.'
+              text: 'Extract all math problems from this image. If there is only one problem, return it. If there are multiple problems, return them numbered (1, 2, 3...), one per line. If this image does NOT contain a math problem, respond with "NO_MATH_PROBLEM". Return only the mathematical content, nothing else.'
             },
             {
               type: 'image_url',
@@ -187,11 +187,25 @@ export async function extractTextWithVision(imageBuffer) {
           ]
         }
       ],
-      max_tokens: 500
+      max_tokens: 1000
     });
 
     const latency = Date.now() - startTime;
     const text = response.choices[0]?.message?.content?.trim() || '';
+    
+    // Check if image contains no math problem
+    if (text.toUpperCase().includes('NO_MATH_PROBLEM') || text.length === 0) {
+      logger.debug('Vision detected no math problem in image');
+      return {
+        text: '',
+        confidence: 0.9,
+        source: 'vision',
+        success: false,
+        noMathProblem: true,
+        reason: 'Image does not contain a math problem'
+      };
+    }
+
     const success = text.length > 0;
 
     // Track metrics
@@ -224,6 +238,219 @@ export async function extractTextWithVision(imageBuffer) {
 
     logger.error('Vision extraction failed:', error);
     throw new OpenAIError('Failed to extract text using Vision API', error);
+  }
+}
+
+/**
+ * Download image from S3
+ * @param {string} imageKey - S3 object key
+ * @returns {Promise<Buffer|null>} Image buffer or null if download fails
+ */
+export async function downloadImageFromS3(imageKey) {
+  if (!imageKey) {
+    logger.warn('No image key provided for download');
+    return null;
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: imageKey
+    });
+
+    const response = await s3Client.send(command);
+    
+    // Convert stream to buffer
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    logger.debug(`Image downloaded from S3: ${imageKey} (${buffer.length} bytes)`);
+    return buffer;
+  } catch (error) {
+    logger.error('Error downloading image from S3:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify problem text against image using Vision API
+ * @param {Buffer} imageBuffer - Image buffer
+ * @param {string} currentProblemText - Current problem text to verify
+ * @returns {Promise<Object>} Verification result with matches, correctText, and confidence
+ */
+export async function verifyProblemTextAgainstImage(imageBuffer, currentProblemText) {
+  const startTime = Date.now();
+  
+  if (!imageBuffer || !currentProblemText) {
+    logger.warn('Missing image buffer or problem text for verification');
+    return { matches: true, correctText: null, confidence: 0 };
+  }
+
+  try {
+    // Convert buffer to base64
+    const base64Image = imageBuffer.toString('base64');
+
+    const prompt = `Does the text "${currentProblemText}" accurately represent what you see in this image? 
+
+If the text matches exactly, respond with: "MATCHES"
+
+If the text does NOT match, respond with ONLY the correct text from the image. Do not include any explanation, just the correct text.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/png;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 200,
+      temperature: 0.1 // Low temperature for accurate verification
+    });
+
+    const latency = Date.now() - startTime;
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    // Check if response indicates a match
+    const matches = responseText.toUpperCase() === 'MATCHES' || 
+                    responseText.toLowerCase() === 'matches' ||
+                    (responseText.toLowerCase() === currentProblemText.toLowerCase());
+
+    if (matches) {
+      logger.debug(`Image verification: Text matches image (latency: ${latency}ms)`);
+      return {
+        matches: true,
+        correctText: null,
+        confidence: 0.9,
+        latency
+      };
+    } else {
+      // Response contains the correct text
+      const correctText = responseText.trim();
+      logger.info(`Image verification: Mismatch detected. Original: "${currentProblemText.substring(0, 50)}..." → Correct: "${correctText.substring(0, 50)}..."`);
+      
+      return {
+        matches: false,
+        correctText,
+        confidence: 0.9,
+        latency
+      };
+    }
+  } catch (error) {
+    const latency = Date.now() - startTime;
+    logger.error('Error verifying problem text against image:', error);
+    
+    // Graceful degradation: return matches=true to avoid breaking conversation
+    return {
+      matches: true,
+      correctText: null,
+      confidence: 0,
+      latency,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Detect and parse multiple problems from extracted text
+ * @param {string} text - Extracted text from image
+ * @returns {Promise<Object>} Parsed problems result
+ */
+export async function detectMultipleProblems(text) {
+  if (!text || text.trim().length === 0) {
+    return { isMultiple: false, problems: [] };
+  }
+
+  try {
+    // First, try simple regex-based detection for numbered problems
+    // Pattern: "1. problem text\n2. problem text" or similar
+    const numberedPattern = /^\d+[\.\)]\s+.+$/m;
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    
+    // Check if we have numbered lines (multiple problems)
+    const numberedLines = lines.filter(line => numberedPattern.test(line.trim()));
+    
+    if (numberedLines.length >= 2) {
+      // Extract numbered problems
+      const problems = numberedLines.map(line => {
+        // Remove leading number and punctuation
+        return line.replace(/^\d+[\.\)]\s*/, '').trim();
+      }).filter(p => p.length > 0);
+      
+      if (problems.length >= 2) {
+        logger.debug(`Detected ${problems.length} numbered problems`);
+        return { isMultiple: true, problems };
+      }
+    }
+
+    // Use LLM to parse and split if regex didn't work
+    const prompt = `Does this text contain one math problem or multiple separate math problems?
+    
+Text: "${text}"
+
+If there is only ONE problem, respond with: "SINGLE: [the problem text]"
+If there are MULTIPLE problems, respond with each problem on a new line numbered: "MULTIPLE:\n1. [first problem]\n2. [second problem]\n..."`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem parser. Identify if text contains one or multiple math problems and format accordingly.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.3
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    if (responseText.startsWith('MULTIPLE:')) {
+      // Extract problems from numbered list
+      const problemLines = responseText
+        .replace('MULTIPLE:', '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0 && /^\d+[\.\)]\s+/.test(line));
+      
+      const problems = problemLines.map(line => {
+        return line.replace(/^\d+[\.\)]\s*/, '').trim();
+      }).filter(p => p.length > 0);
+      
+      if (problems.length >= 2) {
+        logger.debug(`LLM detected ${problems.length} problems`);
+        return { isMultiple: true, problems };
+      }
+    } else if (responseText.startsWith('SINGLE:')) {
+      // Single problem, extract it
+      const singleProblem = responseText.replace('SINGLE:', '').trim();
+      return { isMultiple: false, problems: [singleProblem] };
+    }
+
+    // Fallback: treat as single problem
+    return { isMultiple: false, problems: [text] };
+  } catch (error) {
+    logger.error('Error detecting multiple problems:', error);
+    // Fallback to single problem on error
+    return { isMultiple: false, problems: [text] };
   }
 }
 
@@ -264,8 +491,14 @@ export async function extractTextFromImage(imageBuffer) {
   
   try {
     const visionResult = await extractTextWithVision(imageBuffer);
-    logger.info('Vision extraction successful');
     const totalLatency = Date.now() - pipelineStartTime;
+    
+    if (visionResult.noMathProblem) {
+      logger.info('Vision detected: No math problem in image');
+    } else {
+      logger.info('Vision extraction successful');
+    }
+    
     trackPipelineMetrics(visionResult, totalLatency);
     return visionResult;
   } catch (error) {

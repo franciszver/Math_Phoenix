@@ -1,16 +1,11 @@
 .problem-input {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 1rem;
   padding: 1rem;
   background: white;
   border-top: 1px solid #e0e0e0;
-}
-
-.input-container {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
+  align-items: center;
 }
 
 .text-input-wrapper {
@@ -39,6 +34,8 @@
 
 .file-input-wrapper {
   min-width: 150px;
+  max-width: 200px;
+  flex-shrink: 0;
 }
 
 .file-drop-zone {
@@ -134,7 +131,8 @@
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
-  align-self: flex-start;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .submit-button:hover:not(:disabled) {
@@ -147,11 +145,17 @@
 }
 
 @media (max-width: 600px) {
-  .input-container {
+  .problem-input {
     flex-direction: column;
+    align-items: stretch;
   }
   
   .file-input-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .submit-button {
     width: 100%;
   }
 }

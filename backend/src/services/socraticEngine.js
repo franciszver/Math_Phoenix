@@ -10,6 +10,153 @@ import { OpenAIError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
 
+/**
+ * Check if a problem requires a formula to solve
+ * @param {string} problemText - Problem text
+ * @param {string} category - Problem category
+ * @returns {Promise<Object>} Result with requiresFormula boolean and suggested formula name
+ */
+async function detectFormulaRequirement(problemText, category) {
+  // Rule-based checks for common formula-requiring problems
+  const formulaPatterns = {
+    'Pythagorean theorem': /pythagorean|right triangle|hypotenuse|a² \+ b²|a\^2 \+ b\^2/i,
+    'Area of circle': /area.*circle|circle.*area|πr²|pi.*r\^2/i,
+    'Area of rectangle': /area.*rectangle|rectangle.*area|length.*width/i,
+    'Area of triangle': /area.*triangle|triangle.*area|base.*height/i,
+    'Volume of sphere': /volume.*sphere|sphere.*volume|4\/3.*πr³/i,
+    'Distance formula': /distance.*between|between.*points|coordinate/i,
+    'Quadratic formula': /quadratic|ax² \+ bx \+ c/i,
+    'Slope formula': /slope|m = |rise.*run/i,
+    'Perimeter formula': /perimeter|perimeter of/i
+  };
+
+  // Check patterns
+  for (const [formulaName, pattern] of Object.entries(formulaPatterns)) {
+    if (pattern.test(problemText)) {
+      return { requiresFormula: true, formulaName };
+    }
+  }
+
+  // Use LLM for more complex detection
+  try {
+    const prompt = `Does this math problem require a specific formula to solve? Examples: Pythagorean theorem, area formulas, distance formula, etc.
+
+Problem: "${problemText}"
+Category: ${category}
+
+Respond with:
+- "YES: [formula name]" if it requires a formula (e.g., "YES: Pythagorean theorem")
+- "NO" if no specific formula is needed
+
+Only respond with YES or NO followed by the formula name if applicable.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a math problem analyzer. Determine if a problem requires a specific formula.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 50,
+      temperature: 0.2
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim() || '';
+    
+    if (responseText.toUpperCase().startsWith('YES')) {
+      const formulaMatch = responseText.match(/YES:\s*(.+)/i);
+      const formulaName = formulaMatch ? formulaMatch[1].trim() : 'a formula';
+      return { requiresFormula: true, formulaName };
+    }
+
+    return { requiresFormula: false, formulaName: null };
+  } catch (error) {
+    logger.error('Error detecting formula requirement:', error);
+    return { requiresFormula: false, formulaName: null };
+  }
+}
+
+/**
+ * Check if we've already asked about the formula in the conversation
+ * @param {Array} steps - Conversation steps
+ * @returns {boolean} True if formula question was already asked
+ */
+function hasAskedAboutFormula(steps) {
+  if (!steps || steps.length === 0) return false;
+  
+  const formulaQuestionPatterns = [
+    /what.*formula/i,
+    /do you know.*formula/i,
+    /which formula/i,
+    /formula.*would.*best/i,
+    /formula.*should.*use/i
+  ];
+
+  return steps.some(step => {
+    const tutorPrompt = step.tutor_prompt || '';
+    return formulaQuestionPatterns.some(pattern => pattern.test(tutorPrompt));
+  });
+}
+
+/**
+ * Check if student response indicates they know the correct formula
+ * @param {string} studentResponse - Student's response
+ * @param {string} expectedFormulaName - Expected formula name
+ * @param {string} problemText - Problem text
+ * @returns {Promise<Object>} Result with knowsFormula boolean and confidence
+ */
+async function evaluateFormulaKnowledge(studentResponse, expectedFormulaName, problemText) {
+  if (!studentResponse || !expectedFormulaName) {
+    return { knowsFormula: false, confidence: 0 };
+  }
+
+  try {
+    const prompt = `Does this student response indicate they know the correct formula for this problem?
+
+Problem: "${problemText}"
+Expected formula: "${expectedFormulaName}"
+Student response: "${studentResponse}"
+
+Respond with:
+- "YES" if the student mentions the correct formula (or clearly knows it)
+- "NO" if the student doesn't mention the correct formula or seems unsure
+
+Only respond with YES or NO.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'Evaluate if a student knows the correct formula for a math problem.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 10,
+      temperature: 0.1
+    });
+
+    const responseText = response.choices[0]?.message?.content?.trim().toUpperCase() || '';
+    const knowsFormula = responseText === 'YES';
+    
+    return { 
+      knowsFormula, 
+      confidence: knowsFormula ? 0.9 : 0.1 
+    };
+  } catch (error) {
+    logger.error('Error evaluating formula knowledge:', error);
+    return { knowsFormula: false, confidence: 0 };
+  }
+}
+
 // Enhanced system prompt (from our discussion)
 const SYSTEM_PROMPT = `You are a patient, encouraging math tutor for K-12 students. Your role is to guide students to discover solutions through Socratic questioning.
 
@@ -28,6 +175,15 @@ QUESTIONING STRATEGY:
 - Step through: "What should we do next?" or "How can we simplify this?"
 - Validate understanding: "Why does that work?" or "Can you explain your reasoning?"
 
+IMPORTANT - AVOID QUESTIONS THAT ELICIT MULTIPLE NUMBERS:
+- NEVER ask questions like "What numbers are we adding?" or "Which numbers do we use?" 
+- These questions cause students to respond with multiple numbers (e.g., "5 and 3"), which can be mistaken for a new problem submission
+- Instead, ask questions that require:
+  * Single-number responses: "What is the first number?" or "What number do we start with?"
+  * Non-numeric responses: "What operation should we use?" or "What step comes next?" or "How do we solve this?"
+  * Method-based answers: "What strategy should we try?" or "What should we do first?"
+- If you need to reference specific numbers, frame it as: "Can you tell me the first number?" or "What number appears in the problem first?"
+
 TONE:
 - Warm and encouraging
 - Patient with mistakes
@@ -35,7 +191,71 @@ TONE:
 - Use age-appropriate language for K-12 students`;
 
 /**
+ * Detect positive feedback/validation in tutor's message
+ * This is the PRIMARY signal for progress - tutor validates when student is correct
+ * @param {string} tutorMessage - Tutor's response message
+ * @returns {boolean} True if tutor is providing positive validation
+ */
+function detectTutorValidation(tutorMessage) {
+  if (!tutorMessage) return false;
+  
+  const message = tutorMessage.toLowerCase().trim();
+  
+  // Strong positive validation indicators
+  const strongValidationPatterns = [
+    /^(that'?s|that is)\s+(correct|right|exactly|perfect)/i,
+    /^(correct|right|exactly|perfect|excellent|great job|well done|good work)/i,
+    /^(you'?re|you are)\s+(correct|right)/i,
+    /(that'?s|that is)\s+(correct|right|exactly|perfect)/i,
+    /^\s*(yes|absolutely|precisely|spot on|perfect)/i,
+    /(good|great|excellent|perfect|right|correct)\s+(answer|thinking|work|job)/i,
+    /(you'?ve got it|you got it|that'?s it|exactly right)/i
+  ];
+  
+  // Avoid false positives - check if tutor is correcting or redirecting
+  const correctionPatterns = [
+    /but/i,
+    /however/i,
+    /not quite/i,
+    /almost/i,
+    /close/i,
+    /think again/i,
+    /try again/i,
+    /let'?s try/i,
+    /what about/i
+  ];
+  
+  const hasCorrection = correctionPatterns.some(pattern => pattern.test(message));
+  
+  // If there's a correction, definitely not validation
+  if (hasCorrection) {
+    return false;
+  }
+  
+  // Check for strong validation patterns
+  const hasStrongValidation = strongValidationPatterns.some(pattern => pattern.test(message));
+  
+  // Strong validation = definite progress (and no correction)
+  if (hasStrongValidation) {
+    return true;
+  }
+  
+  // Check for encouraging phrases that might indicate validation
+  // These are weaker signals, so we only use them if there's no correction
+  const encouragingPatterns = [
+    /^(good|great|nice|well done)\s+(answer|thinking|work|job)/i,
+    /^(good|great|nice|well done)!/i
+  ];
+  
+  const hasEncouraging = encouragingPatterns.some(pattern => pattern.test(message));
+  
+  // Only count encouraging phrases if they're clearly validating (not just general encouragement)
+  return hasEncouraging;
+}
+
+/**
  * Analyze student response to determine progress
+ * This is now a FALLBACK signal when tutor feedback is ambiguous
  * @param {string} studentResponse - Student's response
  * @param {Array} previousSteps - Previous conversation steps
  * @param {string} problemText - The problem text
@@ -77,7 +297,19 @@ function analyzeProgress(studentResponse, previousSteps, problemText) {
   });
 
   // Determine if progress was made
-  const madeProgress = progressScore > stuckScore && response.length > 3;
+  // Allow single-digit numeric responses (like "1", "5") to count as progress
+  // since these are often valid answers to questions like "what's the first number?"
+  const isNumericAnswer = /^\d+$/.test(response); // Pure numeric response (single or multiple digits)
+  const hasMinimumLength = response.length > 3 || isNumericAnswer;
+  const madeProgress = progressScore > stuckScore && hasMinimumLength;
+
+  logger.debug(`[PROGRESS] analyzeProgress result:`, {
+    studentResponse: studentResponse.substring(0, 50),
+    progressScore,
+    stuckScore,
+    responseLength: response.length,
+    madeProgress
+  });
 
   return {
     madeProgress,
@@ -85,6 +317,84 @@ function analyzeProgress(studentResponse, previousSteps, problemText) {
     stuckScore,
     responseLength: response.length
   };
+}
+
+/**
+ * Detect if student response indicates solution completion
+ * Uses LLM to analyze if response is a final answer vs intermediate step
+ * @param {string} studentResponse - Student's response
+ * @param {Object} problem - Problem object
+ * @param {Array} steps - Conversation steps
+ * @returns {Promise<Object>} Detection result with solution_completed flag and answer verification
+ */
+export async function detectSolutionCompletion(studentResponse, problem, steps = []) {
+  try {
+    const prompt = `Analyze this student's response to determine if they have provided a FINAL ANSWER to the problem, or if this is just an intermediate step.
+
+Problem: ${problem.raw_input}
+${problem.normalized_latex !== problem.raw_input ? `LaTeX: ${problem.normalized_latex}` : ''}
+
+Student's response: "${studentResponse}"
+
+Previous conversation context:
+${steps.slice(-3).map(s => `Tutor: ${s.tutor_prompt}\nStudent: ${s.student_response}`).join('\n\n')}
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "solution_completed": true or false,
+  "is_correct": true or false (if solution_completed is true),
+  "reasoning": "brief explanation"
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at analyzing student responses to determine if they have completed a math problem. Respond with valid JSON only.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 150,
+      temperature: 0.3
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() || '{}';
+    
+    // Clean up any markdown code blocks
+    const cleanedContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    
+    const result = JSON.parse(cleanedContent);
+
+    logger.debug(`Solution completion detection: ${result.solution_completed}, correct: ${result.is_correct}`);
+
+    return {
+      solution_completed: result.solution_completed || false,
+      is_correct: result.is_correct || false,
+      reasoning: result.reasoning || ''
+    };
+  } catch (error) {
+    logger.error('Error detecting solution completion:', error);
+    // Fallback: use pattern matching
+    const response = studentResponse.toLowerCase().trim();
+    const completionPatterns = [
+      /^(the answer is|it's|i got|i think it's|the solution is)\s*[:\-]?\s*\d+/i,
+      /^\d+$/,
+      /^x\s*=\s*\d+/i,
+      /^answer:\s*\d+/i
+    ];
+
+    const looksLikeCompletion = completionPatterns.some(pattern => pattern.test(response));
+
+    return {
+      solution_completed: looksLikeCompletion,
+      is_correct: false, // Unknown, would need verification
+      reasoning: 'Pattern matching fallback'
+    };
+  }
 }
 
 /**
@@ -124,6 +434,7 @@ function countStuckTurns(steps) {
  * @param {string} context.studentResponse - Student's current response
  * @param {Array} context.conversationHistory - Previous conversation steps
  * @param {boolean} context.shouldProvideHint - Whether to provide a hint
+ * @param {Object} context.formulaInfo - Formula information (if applicable)
  * @returns {Promise<Object>} Tutor response with metadata
  */
 export async function generateTutorResponse(context) {
@@ -133,7 +444,9 @@ export async function generateTutorResponse(context) {
     category,
     studentResponse,
     conversationHistory = [],
-    shouldProvideHint = false
+    shouldProvideHint = false,
+    correctionContext = null,
+    formulaInfo = null
   } = context;
 
   // Build conversation history for context
@@ -143,6 +456,14 @@ export async function generateTutorResponse(context) {
       content: SYSTEM_PROMPT
     }
   ];
+
+  // Add correction context if provided (must be before problem context)
+  if (correctionContext && correctionContext.originalText && correctionContext.correctedText) {
+    messages.push({
+      role: 'system',
+      content: `IMPORTANT: The problem text was incorrectly read from the image. The original text was "${correctionContext.originalText}" but the correct text from the image is "${correctionContext.correctedText}". Please acknowledge this correction naturally and seamlessly in your response, then continue guiding the student with the correct problem. Make it encouraging and don't make the student feel bad about the error.`
+    });
+  }
 
   // Add problem context
   messages.push({
@@ -172,6 +493,27 @@ export async function generateTutorResponse(context) {
       role: 'user',
       content: studentResponse
     });
+  }
+
+  // Add formula question instruction if needed
+  if (formulaInfo && formulaInfo.shouldAskAboutFormula) {
+    messages.push({
+      role: 'system',
+      content: `This problem requires the ${formulaInfo.formulaName} formula. Ask the student: "Do you know what formula would be best for this problem?" or "What formula do you think we should use?" This helps assess if they know the formula before proceeding.`
+    });
+  } else if (formulaInfo && formulaInfo.studentKnowsFormula !== undefined) {
+    // Student already answered about the formula
+    if (formulaInfo.studentKnowsFormula) {
+      messages.push({
+        role: 'system',
+        content: `The student knows the ${formulaInfo.formulaName} formula. Acknowledge this and guide them to apply it to solve the problem.`
+      });
+    } else {
+      messages.push({
+        role: 'system',
+        content: `The student doesn't seem to know the ${formulaInfo.formulaName} formula. Gently introduce it: "For this type of problem, we use the ${formulaInfo.formulaName}. Let me explain how it works..." Then guide them through applying it.`
+      });
+    }
   }
 
   // Add hint instruction if needed
@@ -214,38 +556,108 @@ export async function generateTutorResponse(context) {
  * @returns {Promise<Object>} Response with tutor message and metadata
  */
 export async function processStudentResponse({ studentResponse, problem, steps = [] }) {
-  // Analyze progress
+  // Step 1: Analyze student response as fallback signal
   const progressAnalysis = analyzeProgress(studentResponse, steps, problem.raw_input);
   
-  // Count stuck turns
+  // Count stuck turns from previous steps (before current response)
   const stuckTurns = countStuckTurns(steps);
   
-  // Determine if hint should be provided
-  const shouldProvideHint = stuckTurns >= 2 && !progressAnalysis.madeProgress;
+  // Check if problem requires a formula and if we should ask about it
+  let formulaInfo = null;
+  
+  // Detect if problem requires a formula
+  const formulaRequirement = await detectFormulaRequirement(problem.raw_input, problem.category);
+  
+  if (formulaRequirement.requiresFormula) {
+    // Check if the last tutor prompt was asking about the formula
+    const lastStep = steps.length > 0 ? steps[steps.length - 1] : null;
+    const lastTutorPrompt = lastStep?.tutor_prompt || '';
+    const lastPromptAskedAboutFormula = /what.*formula|do you know.*formula|which formula|formula.*would.*best|formula.*should.*use/i.test(lastTutorPrompt);
+    
+    if (lastPromptAskedAboutFormula && studentResponse) {
+      // Last step asked about formula, this response is answering it - evaluate
+      const formulaKnowledge = await evaluateFormulaKnowledge(
+        studentResponse, 
+        formulaRequirement.formulaName, 
+        problem.raw_input
+      );
+      formulaInfo = {
+        shouldAskAboutFormula: false,
+        formulaName: formulaRequirement.formulaName,
+        studentKnowsFormula: formulaKnowledge.knowsFormula
+      };
+      logger.debug(`[FORMULA] Student knows formula: ${formulaKnowledge.knowsFormula} (confidence: ${formulaKnowledge.confidence})`);
+    } else if (!hasAskedAboutFormula(steps) && steps.length <= 2) {
+      // Haven't asked yet and we're early in conversation - ask about the formula
+      formulaInfo = {
+        shouldAskAboutFormula: true,
+        formulaName: formulaRequirement.formulaName
+      };
+      logger.debug(`[FORMULA] Detected formula requirement: ${formulaRequirement.formulaName}, will ask student`);
+    }
+  }
+  
+  // Determine preliminary hint logic based on student response analysis
+  // This is used to generate the tutor response, but will be re-evaluated after we check tutor validation
+  const preliminaryShouldProvideHint = stuckTurns >= 2 && !progressAnalysis.madeProgress;
 
   // Update progress analysis with stuck count
   progressAnalysis.stuckTurns = stuckTurns;
-  progressAnalysis.shouldProvideHint = shouldProvideHint;
 
-  // Generate tutor response
+  // Generate tutor response using preliminary hint logic
   const tutorResponse = await generateTutorResponse({
     problemText: problem.raw_input,
     normalizedLatex: problem.normalized_latex,
     category: problem.category,
     studentResponse,
     conversationHistory: steps,
-    shouldProvideHint
+    shouldProvideHint: preliminaryShouldProvideHint,
+    formulaInfo
   });
 
-  // Build step object
+  // Step 2: PRIMARY SIGNAL - Check if tutor is providing positive validation
+  const tutorValidates = detectTutorValidation(tutorResponse.message);
+  
+  // Step 3: Determine final progress_made
+  // Use tutor validation as primary signal, fallback to student response analysis
+  // If tutor validates, it's definitely progress (tutor knows the answer is correct)
+  // If tutor doesn't validate but student response shows progress indicators, use that as fallback
+  const finalProgressMade = tutorValidates || progressAnalysis.madeProgress;
+  
+  // Final hint logic: if tutor validates OR student shows progress, don't provide hint
+  // Only provide hint if student has been stuck for 2+ turns AND no progress detected
+  // Note: If tutor validates, we know progress was made, so hint wouldn't be needed anyway
+  const finalShouldProvideHint = stuckTurns >= 2 && !finalProgressMade;
+  
+  // Log for debugging
+  if (tutorValidates) {
+    logger.debug(`[PROGRESS] Tutor validation detected: "${tutorResponse.message.substring(0, 50)}..."`);
+  } else if (progressAnalysis.madeProgress) {
+    logger.debug(`[PROGRESS] Fallback: Student response shows progress indicators`);
+  }
+
+  // Build step object with final progress determination
   const step = {
     tutor_prompt: tutorResponse.message,
     student_response: studentResponse,
-    hint_used: tutorResponse.hintProvided,
-    progress_made: progressAnalysis.madeProgress,
+    hint_used: tutorResponse.hintProvided && finalShouldProvideHint, // Use final hint logic
+    progress_made: finalProgressMade, // Use tutor validation as primary
     stuck_turns: stuckTurns,
     timestamp: new Date().toISOString()
   };
+
+  // Update progress analysis with final hint decision
+  progressAnalysis.shouldProvideHint = finalShouldProvideHint;
+  
+  logger.info(`[STEP] Created step:`, {
+    hint_used: step.hint_used,
+    progress_made: step.progress_made,
+    tutor_validates: tutorValidates,
+    student_response_progress: progressAnalysis.madeProgress,
+    stuck_turns: step.stuck_turns,
+    shouldProvideHint: finalShouldProvideHint,
+    preliminaryShouldProvideHint: preliminaryShouldProvideHint
+  });
 
   return {
     step,

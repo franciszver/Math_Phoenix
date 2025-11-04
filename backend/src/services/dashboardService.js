@@ -76,8 +76,26 @@ export async function getAggregateStats() {
       medium: 0,
       hard: 0,
       unknown: 0
+    },
+    // Learning assessment metrics
+    learning: {
+      totalAssessed: 0,
+      averageConfidence: 0,
+      highConfidence: 0, // >= 0.8
+      mediumConfidence: 0, // 0.5-0.79
+      lowConfidence: 0, // < 0.5
+      completionGap: 0, // Problems completed but low confidence
+      masteryRate: 0, // Percentage with high confidence
+      transferSuccessRate: 0,
+      mcAverageScore: 0,
+      mcQuizFailures: 0 // MC quizzes failed (< 67%)
     }
   };
+
+  const learningConfidences = [];
+  const mcScores = [];
+  let transferSuccessCount = 0;
+  let transferTotalCount = 0;
 
   sessions.forEach(session => {
     const problems = session.problems || [];
@@ -105,8 +123,62 @@ export async function getAggregateStats() {
       } else {
         stats.difficulties.unknown++;
       }
+
+      // Learning assessment metrics
+      const assessment = problem.learning_assessment;
+      if (assessment && assessment.assessment_completed) {
+        stats.learning.totalAssessed++;
+        
+        const confidence = assessment.learning_confidence || 0;
+        learningConfidences.push(confidence);
+        
+        if (confidence >= 0.8) {
+          stats.learning.highConfidence++;
+        } else if (confidence >= 0.5) {
+          stats.learning.mediumConfidence++;
+        } else {
+          stats.learning.lowConfidence++;
+        }
+
+        // Completion gap: completed but low confidence
+        if (problem.completed && confidence < 0.6) {
+          stats.learning.completionGap++;
+        }
+
+        // MC quiz failed - flag for teacher attention
+        if (assessment.mc_quiz_failed) {
+          stats.learning.mcQuizFailures = (stats.learning.mcQuizFailures || 0) + 1;
+        }
+
+        // MC scores
+        if (assessment.mc_score !== null && assessment.mc_score !== undefined) {
+          mcScores.push(assessment.mc_score);
+        }
+
+        // Transfer problem success
+        if (assessment.transfer_success !== null && assessment.transfer_success !== undefined) {
+          transferTotalCount++;
+          if (assessment.transfer_success) {
+            transferSuccessCount++;
+          }
+        }
+      }
     });
   });
+
+  // Calculate averages
+  if (learningConfidences.length > 0) {
+    stats.learning.averageConfidence = learningConfidences.reduce((a, b) => a + b, 0) / learningConfidences.length;
+    stats.learning.masteryRate = stats.learning.highConfidence / stats.learning.totalAssessed;
+  }
+
+  if (mcScores.length > 0) {
+    stats.learning.mcAverageScore = mcScores.reduce((a, b) => a + b, 0) / mcScores.length;
+  }
+
+  if (transferTotalCount > 0) {
+    stats.learning.transferSuccessRate = transferSuccessCount / transferTotalCount;
+  }
 
   return stats;
 }
@@ -128,17 +200,36 @@ export async function getAllSessionsWithStats() {
       hints_used_total: 0,
       categories: {},
       difficulties: {},
-      problems: problems.map(p => ({
-        problem_id: p.problem_id,
-        category: p.category || p.problem_info?.category || 'other',
-        difficulty: p.difficulty || p.problem_info?.difficulty || 'unknown',
-        hints_used: p.hints_used_total || 0,
-        created_at: p.created_at,
-        completed: p.completed || false
-      }))
+      learning: {
+        averageConfidence: 0,
+        totalAssessed: 0,
+        needsIntervention: false, // Flag if average confidence < 0.5
+        mcQuizFailures: 0
+      },
+      problems: problems.map(p => {
+        const assessment = p.learning_assessment || {};
+        return {
+          problem_id: p.problem_id,
+          category: p.category || p.problem_info?.category || 'other',
+          difficulty: p.difficulty || p.problem_info?.difficulty || 'unknown',
+          hints_used: p.hints_used_total || 0,
+          created_at: p.created_at,
+          completed: p.completed || false,
+          learning_assessment: assessment.assessment_completed ? {
+            confidence: (assessment.learning_confidence != null && !isNaN(assessment.learning_confidence)) ? assessment.learning_confidence : 0,
+            mc_score: assessment.mc_score || 0,
+            transfer_success: assessment.transfer_success,
+            mc_questions: assessment.mc_questions || [],
+            transfer_problem: assessment.transfer_problem,
+            mc_quiz_failed: assessment.mc_quiz_failed || false,
+            mc_quiz_failed_at: assessment.mc_quiz_failed_at || null
+          } : null
+        };
+      })
     };
 
-    // Calculate totals
+    // Calculate totals and learning metrics
+    const confidences = [];
     problems.forEach(problem => {
       const hints = problem.hints_used_total || 0;
       sessionStats.hints_used_total += hints;
@@ -148,7 +239,26 @@ export async function getAllSessionsWithStats() {
 
       const difficulty = problem.difficulty || problem.problem_info?.difficulty || 'unknown';
       sessionStats.difficulties[difficulty] = (sessionStats.difficulties[difficulty] || 0) + 1;
+
+      // Learning assessment
+      const assessment = problem.learning_assessment;
+      if (assessment && assessment.assessment_completed) {
+        sessionStats.learning.totalAssessed++;
+        const confidence = (assessment.learning_confidence != null && !isNaN(assessment.learning_confidence)) ? assessment.learning_confidence : 0;
+        confidences.push(confidence);
+        
+        // Track MC quiz failures
+        if (assessment.mc_quiz_failed) {
+          sessionStats.learning.mcQuizFailures++;
+        }
+      }
     });
+
+    // Calculate average confidence
+    if (confidences.length > 0) {
+      sessionStats.learning.averageConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
+      sessionStats.learning.needsIntervention = sessionStats.learning.averageConfidence < 0.5;
+    }
 
     return sessionStats;
   });
@@ -167,12 +277,34 @@ export async function getSessionDetails(sessionCode) {
     return null;
   }
 
+  // Transform problems to match the structure expected by frontend
+  const problems = (session.problems || []).map(p => {
+    const assessment = p.learning_assessment || {};
+    return {
+      problem_id: p.problem_id,
+      category: p.category || p.problem_info?.category || 'other',
+      difficulty: p.difficulty || p.problem_info?.difficulty || 'unknown',
+      hints_used: p.hints_used_total || 0,
+      created_at: p.created_at,
+      completed: p.completed || false,
+      learning_assessment: assessment.assessment_completed ? {
+        confidence: (assessment.learning_confidence != null && !isNaN(assessment.learning_confidence)) ? assessment.learning_confidence : 0,
+        mc_score: assessment.mc_score || 0,
+        transfer_success: assessment.transfer_success,
+        mc_questions: assessment.mc_questions || [],
+        transfer_problem: assessment.transfer_problem,
+        mc_quiz_failed: assessment.mc_quiz_failed || false,
+        mc_quiz_failed_at: assessment.mc_quiz_failed_at || null
+      } : null
+    };
+  });
+
   return {
     session_code: session.session_code,
     created_at: session.created_at,
     expires_at: session.expires_at,
     current_problem_id: session.current_problem_id,
-    problems: session.problems || [],
+    problems: problems,
     transcript: session.transcript || [],
     transcript_length: (session.transcript || []).length
   };

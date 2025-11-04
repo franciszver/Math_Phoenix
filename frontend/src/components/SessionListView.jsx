@@ -6,7 +6,7 @@ import './SessionListView.css';
  * Session List View Component
  * Displays per-session statistics and allows editing problem tags
  */
-export function SessionListView({ token, onError }) {
+export function SessionListView({ token, onError, initialSelectedSession, onSessionSelected }) {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [sessionDetails, setSessionDetails] = useState(null);
@@ -16,6 +16,17 @@ export function SessionListView({ token, onError }) {
   useEffect(() => {
     loadSessions();
   }, [token]);
+
+  // Handle initial session selection from navigation
+  useEffect(() => {
+    if (initialSelectedSession && sessions.length > 0) {
+      const session = sessions.find(s => s.session_code === initialSelectedSession);
+      if (session && selectedSession !== initialSelectedSession) {
+        loadSessionDetails(initialSelectedSession);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSelectedSession, sessions]);
 
   const loadSessions = async () => {
     setIsLoading(true);
@@ -36,6 +47,10 @@ export function SessionListView({ token, onError }) {
       const details = await getSessionDetails(sessionCode, token);
       setSessionDetails(details);
       setSelectedSession(sessionCode);
+      // Notify parent that a session was selected (to clear initial selection)
+      if (onSessionSelected) {
+        onSessionSelected();
+      }
     } catch (error) {
       console.error('Error loading session details:', error);
       onError?.(error.response?.data?.error?.message || 'Failed to load session details');
@@ -126,6 +141,19 @@ export function SessionListView({ token, onError }) {
                 <div className="session-stats">
                   <span>{session.problems_count} problems</span>
                   <span>{session.hints_used_total} hints</span>
+                  {session.learning && session.learning.totalAssessed > 0 && (
+                    <>
+                      <span className="learning-stat">
+                        {Math.round((session.learning.averageConfidence ?? 0) * 100)}% confidence
+                      </span>
+                      {session.learning.needsIntervention && (
+                        <span className="intervention-flag">⚠️ Needs Support</span>
+                      )}
+                      {session.learning.mcQuizFailures > 0 && (
+                        <span className="mc-quiz-failure-flag">🔴 {session.learning.mcQuizFailures} MC Quiz Failure{session.learning.mcQuizFailures > 1 ? 's' : ''}</span>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             ))
@@ -157,6 +185,18 @@ export function SessionListView({ token, onError }) {
                   <span className="detail-label">Messages:</span>
                   <span className="detail-value">{sessionDetails.transcript_length}</span>
                 </div>
+                <div className="detail-actions">
+                  <a
+                    href={`/?session=${sessionDetails.session_code}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="view-session-btn"
+                    title="Open student session in new window"
+                  >
+                    <span className="btn-icon">🔗</span>
+                    View Student Session
+                  </a>
+                </div>
               </div>
 
               <div className="problems-list">
@@ -187,8 +227,10 @@ export function SessionListView({ token, onError }) {
 function ProblemCard({ problem, sessionCode, onUpdateTags }) {
   const [editingCategory, setEditingCategory] = useState(false);
   const [editingDifficulty, setEditingDifficulty] = useState(false);
+  const [expandedMC, setExpandedMC] = useState(false);
   const [category, setCategory] = useState(problem.category || problem.problem_info?.category || 'other');
   const [difficulty, setDifficulty] = useState(problem.difficulty || problem.problem_info?.difficulty || 'unknown');
+  const assessment = problem.learning_assessment;
 
   const categories = ['arithmetic', 'algebra', 'geometry', 'word', 'multi-step', 'other'];
   const difficulties = ['easy', 'medium', 'hard', 'unknown'];
@@ -259,9 +301,90 @@ function ProblemCard({ problem, sessionCode, onUpdateTags }) {
 
         <div className="tag-display">
           <span className="tag-label">Hints Used:</span>
-          <span className="tag-value">{problem.hints_used_total || 0}</span>
+          <span className="tag-value">{problem.hints_used || 0}</span>
         </div>
       </div>
+
+      {/* Learning Assessment Display */}
+      {assessment && (
+        <div className="learning-assessment-section">
+          <div className="assessment-header">
+            <span className="assessment-label">Learning Assessment</span>
+            <span className={`confidence-badge ${
+              (assessment.confidence ?? 0) >= 0.8 ? 'high' :
+              (assessment.confidence ?? 0) >= 0.5 ? 'medium' : 'low'
+            }`}>
+              {Math.round((assessment.confidence ?? 0) * 100)}% Confidence
+            </span>
+          </div>
+          
+          {assessment.mc_quiz_failed && (
+            <div className="mc-quiz-failed-banner">
+              <span className="alert-icon">🔴</span>
+              <span className="alert-text">
+                <strong>MC Quiz Failed</strong> - Student scored below 67%. This student may need additional attention.
+              </span>
+            </div>
+          )}
+
+          <div className="assessment-metrics">
+            <div className="assessment-metric">
+              <span className="metric-label">MC Quiz:</span>
+              <span className={`metric-value ${assessment.mc_quiz_failed ? 'failed' : ''}`}>
+                {Math.round(assessment.mc_score * 100)}% ({assessment.mc_questions?.filter(q => q.correct).length || 0}/{assessment.mc_questions?.length || 0} correct)
+                {assessment.mc_quiz_failed && <span className="failed-indicator"> (FAILED)</span>}
+              </span>
+            </div>
+            {assessment.transfer_success !== null && (
+              <div className="assessment-metric">
+                <span className="metric-label">Transfer Problem:</span>
+                <span className={`metric-value ${assessment.transfer_success ? 'success' : 'failed'}`}>
+                  {assessment.transfer_success ? '✓ Pass' : '✗ Needs Help'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Expandable MC Questions */}
+          {assessment.mc_questions && assessment.mc_questions.length > 0 && (
+            <div className="mc-questions-section">
+              <button 
+                className="expand-mc-btn"
+                onClick={() => setExpandedMC(!expandedMC)}
+              >
+                {expandedMC ? '▼' : '▶'} MC Questions
+              </button>
+              
+              {expandedMC && (
+                <div className="mc-questions-list">
+                  {assessment.mc_questions.map((q, idx) => (
+                    <div key={idx} className={`mc-question-item ${q.correct ? 'correct' : 'incorrect'}`}>
+                      <div className="mc-question-text">{q.question}</div>
+                      <div className="mc-answer-details">
+                        <span>Selected: {q.options[q.student_answer_index]}</span>
+                        {!q.correct && (
+                          <span className="correct-answer">Correct: {q.options[q.correct_answer_index]}</span>
+                        )}
+                        <span className={`mc-result ${q.correct ? 'correct' : 'incorrect'}`}>
+                          {q.correct ? '✓' : '✗'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Transfer Problem Details */}
+          {assessment.transfer_problem && (
+            <div className="transfer-problem-section">
+              <div className="transfer-problem-label">Transfer Problem:</div>
+              <div className="transfer-problem-text">{assessment.transfer_problem.problem_text}</div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

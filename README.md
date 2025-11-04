@@ -83,6 +83,42 @@ Math_Phoenix/
 - **Frontend**: Vite + React (runs on http://localhost:5173 by default)
 - **Backend**: Express (runs on http://localhost:3001 by default)
 
+### Generating Demo Data
+
+To populate the teacher dashboard with realistic demo data for presentations or testing:
+
+```bash
+cd backend
+npm run generate-demo-data
+```
+
+**Options:**
+- `--count=N` - Number of sessions to generate (default: 20)
+- `--clear` - Clear existing data before generating (optional)
+- `--days=N` - Number of days to spread sessions over (default: 7)
+
+**Examples:**
+```bash
+# Generate 20 sessions spread over 7 days (default)
+npm run generate-demo-data
+
+# Generate 30 sessions, clear existing data first
+npm run generate-demo-data -- --count=30 --clear
+
+# Generate 15 sessions spread over 14 days
+npm run generate-demo-data -- --count=15 --days=14
+```
+
+**What it generates:**
+- Multiple sessions with varied creation dates
+- 1-5 problems per session across all categories (arithmetic, algebra, geometry, word, multi-step)
+- Realistic conversation flows with 2-8 steps per problem
+- Proper hint usage tracking and streak meter data
+- Transcript entries for each conversation turn
+- Mix of completed and in-progress problems
+
+**Note:** Requires AWS credentials and DynamoDB table to be configured. The script uses the same AWS configuration as the main application.
+
 ## 📡 API Endpoints
 
 ### Sessions
@@ -98,6 +134,34 @@ Math_Phoenix/
 - `POST /api/sessions/:code/chat` - Send message in conversation
   - Body: `{ message: "student response" }`
   - Returns: Tutor response, conversation context
+
+## 🔍 Image Verification System
+
+**Feature:** Automatic verification and correction of image-based math problems.
+
+**How it works:**
+- When a student uploads an image, the system extracts text using OCR (Textract → Vision fallback)
+- The OCR confidence score is stored with the problem (0-1 scale)
+- For problems with low OCR confidence (< 0.8 or missing), the system automatically verifies the problem text against the image after every tutor response
+- If a mismatch is detected (e.g., "1+1" was read instead of "1+12"), the system:
+  1. Automatically corrects the problem text
+  2. Re-processes the problem (updates LaTeX, category, difficulty)
+  3. Re-generates the tutor response with a natural correction acknowledgment
+  4. Updates the session with the corrected problem
+
+**Benefits:**
+- **Redundancy**: Catches OCR errors that might have been missed initially
+- **Accuracy**: Ensures students work with the correct problem throughout the session
+- **Seamless UX**: Corrections are acknowledged naturally by the tutor without disrupting the conversation flow
+- **Smart Optimization**: Only verifies when OCR confidence is low, reducing unnecessary API calls
+
+**Verification Conditions:**
+- Only runs for image-based problems (has `image_key`)
+- Only verifies if the problem is still active (student hasn't moved to a new problem)
+- Skips verification if OCR confidence is high (≥ 0.8), saving API costs
+- Gracefully degrades on errors (verification failures don't break the conversation)
+
+**Example:** If OCR reads "1+1" with low confidence, verification after the first tutor response catches the error and corrects it to "1+12", allowing the tutor to guide the student with the correct problem.
 
 ## 📊 Phase 3: Monitoring & ML Data Collection
 

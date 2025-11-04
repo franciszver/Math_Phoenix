@@ -31,6 +31,27 @@
   border-bottom-left-radius: 4px;
 }
 
+.chat-message.streak-feedback.tutor .message-content {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 2px solid #ffd700;
+  font-weight: 500;
+  animation: streakPulse 0.5s ease-in-out;
+}
+
+.chat-message.streak-feedback.tutor .message-label {
+  color: #856404;
+  font-weight: 600;
+}
+
+@keyframes streakPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
 .message-label {
   font-size: 0.75rem;
   opacity: 0.8;
@@ -73,6 +94,18 @@
   padding: 0.5rem;
   background: rgba(255, 255, 255, 0.5);
   border-radius: 4px;
+}
+
+.chat-message.error-message.tutor .message-content {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  color: #856404;
+  font-weight: 500;
+}
+
+.chat-message.error-message.tutor .message-label {
+  color: #856404;
+  font-weight: 600;
 }
 
 @keyframes fadeIn {
