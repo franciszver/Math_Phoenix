@@ -3,6 +3,8 @@
 ## Overview
 This document lists prioritized implementation tasks for the AI Math Tutor MVP and Full Build. Tasks are grouped into **Phases** that reflect logical build order, not calendar dates.
 
+**Status:** ✅ **MVP Complete** - Phases 0-3 are fully implemented. Phases 4-5 are marked as stretch goals for future work.
+
 ---
 
 ## Phase 0 – Project Setup
@@ -108,7 +110,9 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 
 ---
 
-## Phase 4 – High‑Value Extensions (Full Build)
+## Phase 4 – High‑Value Extensions (Stretch Goals / Future Work)
+
+**Note:** These features are planned for future implementation but are not part of the current MVP scope.
 
 - [ ] Add **interactive whiteboard** (shared canvas).
 - [ ] Implement **step visualization animations**.
@@ -117,7 +121,9 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 
 ---
 
-## Phase 5 – Polish Features (Full Build)
+## Phase 5 – Polish Features (Stretch Goals / Future Work)
+
+**Note:** These features are planned for future implementation but are not part of the current MVP scope.
 
 - [ ] Add **animated tutor avatar** (2D/3D).
 - [ ] Implement **difficulty modes** (grade‑level scaffolding).
