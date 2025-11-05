@@ -18,7 +18,8 @@ import './Chat.css';
  * Main chat interface for the math tutoring session
  */
 export function Chat({ 
-  sessionCode, 
+  sessionCode,
+  schoolCode,
   initialMessages = [], 
   hasActiveProblem = false, 
   onError, 
@@ -61,7 +62,8 @@ export function Chat({
 
     const checkCollaborationRequest = async () => {
       try {
-        const session = await getSession(sessionCode);
+        if (!schoolCode) return; // Can't check without school code
+        const session = await getSession(sessionCode, schoolCode);
         if (session.collaboration_requested && !collaborationRequested) {
           // Update parent state to trigger modal
           if (onCollaborationRequested) {
@@ -80,7 +82,7 @@ export function Chat({
     const pollInterval = setInterval(checkCollaborationRequest, 3000);
     
     return () => clearInterval(pollInterval);
-  }, [sessionCode, collaborationRequested, onCollaborationRequested]);
+  }, [sessionCode, schoolCode, collaborationRequested, onCollaborationRequested]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

@@ -15,6 +15,11 @@ function getDashboardPassword() {
   return process.env.DASHBOARD_PASSWORD;
 }
 
+// Get session password (school code) dynamically
+function getSessionPassword() {
+  return process.env.SESSION_PASSWORD;
+}
+
 const TOKEN_SECRET = process.env.SESSION_SECRET || 'default-secret-change-in-production';
 
 /**
@@ -106,5 +111,25 @@ export function requireDashboardAuth(req, res, next) {
 
   // Token is valid, proceed
   next();
+}
+
+/**
+ * Validate school code (session password)
+ * @param {string} schoolCode - The school code to validate
+ * @throws {AppError} If school code is invalid or not configured
+ */
+export function validateSchoolCode(schoolCode) {
+  const expectedCode = getSessionPassword();
+  
+  if (!expectedCode) {
+    logger.error('SESSION_PASSWORD not set in environment variables');
+    throw new AppError('School code authentication not configured', 500, 'CONFIG_ERROR');
+  }
+  
+  if (!schoolCode || schoolCode !== expectedCode) {
+    throw new AppError('Invalid school code', 401, 'AUTH_ERROR');
+  }
+  
+  return true;
 }
 

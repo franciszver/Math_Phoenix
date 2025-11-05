@@ -5,7 +5,8 @@ import './SessionEntry.css';
  * Session Entry Component
  * Allows user to enter a session code to resume a session
  */
-export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = null }) {
+export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = null, apiError = null }) {
+  const [schoolCode, setSchoolCode] = useState('');
   const [sessionCode, setSessionCode] = useState(prefilledCode || '');
   const [error, setError] = useState('');
 
@@ -16,9 +17,22 @@ export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = nu
     }
   }, [prefilledCode]);
 
+  // Update error when API error changes
+  useEffect(() => {
+    if (apiError) {
+      setError(apiError);
+    }
+  }, [apiError]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Validate school code (required)
+    if (!schoolCode.trim()) {
+      setError('Please enter a school code');
+      return;
+    }
+
     if (!sessionCode.trim()) {
       setError('Please enter a session code');
       return;
@@ -31,7 +45,18 @@ export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = nu
     }
 
     setError('');
-    onSessionSubmit(sessionCode.trim().toUpperCase());
+    onSessionSubmit(sessionCode.trim().toUpperCase(), schoolCode.trim());
+  };
+
+  const handleNewSession = () => {
+    // Validate school code (required)
+    if (!schoolCode.trim()) {
+      setError('Please enter a school code');
+      return;
+    }
+
+    setError('');
+    onNewSession(schoolCode.trim());
   };
 
   return (
@@ -50,6 +75,22 @@ export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = nu
       
       <form onSubmit={handleSubmit} className="session-form">
         <div className="form-group">
+          <label htmlFor="school-code">School Code</label>
+          <input
+            id="school-code"
+            type="password"
+            value={schoolCode}
+            onChange={(e) => {
+              setSchoolCode(e.target.value);
+              setError('');
+            }}
+            placeholder="Enter school code"
+            required
+            className={error && !schoolCode.trim() ? 'error' : ''}
+          />
+        </div>
+        
+        <div className="form-group">
           <label htmlFor="session-code">Enter Session Code (or start new)</label>
           <input
             id="session-code"
@@ -61,7 +102,7 @@ export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = nu
             }}
             placeholder="AB12CD"
             maxLength={6}
-            className={error ? 'error' : ''}
+            className={error && sessionCode.trim() ? 'error' : ''}
           />
           {error && <span className="error-message">{error}</span>}
         </div>
@@ -72,7 +113,7 @@ export function SessionEntry({ onSessionSubmit, onNewSession, prefilledCode = nu
           </button>
           <button 
             type="button" 
-            onClick={onNewSession}
+            onClick={handleNewSession}
             className="btn-secondary"
           >
             Start New Session

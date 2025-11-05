@@ -14,16 +14,15 @@ function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Dashboard state
-  const [dashboardToken, setDashboardToken] = useState(() => {
-    return localStorage.getItem('dashboardToken');
-  });
+  // Dashboard state - always require password, don't persist token
+  const [dashboardToken, setDashboardToken] = useState(null);
   const isDashboardRoute = location.pathname === '/dashboard';
   const isCollaborationRoute = location.pathname.startsWith('/collaboration/');
   
   // Chat app state
   const [hasConsented, setHasConsented] = useState(false);
   const [sessionCode, setSessionCode] = useState(null);
+  const [schoolCode, setSchoolCode] = useState(null);
   const [initialMessages, setInitialMessages] = useState([]);
   const [hasActiveProblem, setHasActiveProblem] = useState(false);
   const [error, setError] = useState(null);
@@ -32,6 +31,11 @@ function AppContent() {
   const [collaborationRequested, setCollaborationRequested] = useState(false);
   const [collaborationSessionId, setCollaborationSessionId] = useState(null);
 
+
+  // Clear dashboard token from localStorage on mount - always require password
+  useEffect(() => {
+    localStorage.removeItem('dashboardToken');
+  }, []);
 
   // Clear localStorage on page load to prevent accidental session reuse
   // But don't clear if on collaboration route (we need it to identify student)
@@ -69,7 +73,7 @@ function AppContent() {
     try {
       const response = await dashboardLogin(password);
       setDashboardToken(response.token);
-      localStorage.setItem('dashboardToken', response.token);
+      // Don't persist token - always require password on next visit
     } catch (error) {
       throw new Error(error.response?.data?.error?.message || 'Login failed');
     }
@@ -78,7 +82,6 @@ function AppContent() {
   // Handle dashboard logout
   const handleDashboardLogout = () => {
     setDashboardToken(null);
-    localStorage.removeItem('dashboardToken');
     navigate('/');
   };
 
@@ -86,6 +89,7 @@ function AppContent() {
   const handleQuitSession = () => {
     // Clear everything
     setSessionCode(null);
+    setSchoolCode(null);
     setInitialMessages([]);
     setHasActiveProblem(false);
     setError(null);
@@ -106,13 +110,14 @@ function AppContent() {
     return <Dashboard token={dashboardToken} onLogout={handleDashboardLogout} onError={setError} />;
   }
 
-  const loadSession = async (code) => {
+  const loadSession = async (code, enteredSchoolCode) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const session = await resumeSession(code);
+      const session = await resumeSession(code, enteredSchoolCode);
       setSessionCode(session.session_code);
+      setSchoolCode(enteredSchoolCode);
       
       // Convert transcript to messages
       const messages = (session.transcript || []).map(entry => ({
@@ -142,7 +147,8 @@ function AppContent() {
       localStorage.setItem('mathPhoenixSession', session.session_code);
     } catch (error) {
       console.error('Error loading session:', error);
-      setError('Failed to load session. Please start a new one.');
+      const errorMessage = error.response?.data?.error?.message || 'Failed to load session. Please check your school code and session code and try again.';
+      setError(errorMessage);
       setSessionCode(null);
     } finally {
       setIsLoading(false);
@@ -157,13 +163,14 @@ function AppContent() {
     alert('You must accept the consent to use Math Phoenix.');
   };
 
-  const handleNewSession = async () => {
+  const handleNewSession = async (enteredSchoolCode) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const session = await createSession();
+      const session = await createSession(enteredSchoolCode);
       setSessionCode(session.session_code);
+      setSchoolCode(enteredSchoolCode);
       setInitialMessages([]);
       setHasActiveProblem(false);
       // Store session in localStorage for current session use
@@ -173,14 +180,15 @@ function AppContent() {
       window.history.pushState({}, '', `?session=${session.session_code}`);
     } catch (error) {
       console.error('Error creating session:', error);
-      setError('Failed to create session. Please try again.');
+      const errorMessage = error.response?.data?.error?.message || 'Failed to create session. Please check your school code and try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSessionSubmit = async (code) => {
-    await loadSession(code);
+  const handleSessionSubmit = async (code, schoolCode) => {
+    await loadSession(code, schoolCode);
   };
 
   if (!hasConsented) {
@@ -195,6 +203,7 @@ function AppContent() {
             onSessionSubmit={handleSessionSubmit}
             onNewSession={handleNewSession}
             prefilledCode={prefilledSessionCode}
+            apiError={error}
           />
         </div>
         <DashboardLink />
@@ -214,6 +223,7 @@ function AppContent() {
     <div className="app-container">
       <Chat
         sessionCode={sessionCode}
+        schoolCode={schoolCode}
         initialMessages={initialMessages}
         hasActiveProblem={hasActiveProblem}
         onError={setError}
