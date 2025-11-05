@@ -18,7 +18,8 @@ import './Chat.css';
  * Main chat interface for the math tutoring session
  */
 export function Chat({ 
-  sessionCode, 
+  sessionCode,
+  schoolCode,
   initialMessages = [], 
   hasActiveProblem = false, 
   onError, 
@@ -61,7 +62,8 @@ export function Chat({
 
     const checkCollaborationRequest = async () => {
       try {
-        const session = await getSession(sessionCode);
+        if (!schoolCode) return; // Can't check without school code
+        const session = await getSession(sessionCode, schoolCode);
         if (session.collaboration_requested && !collaborationRequested) {
           // Update parent state to trigger modal
           if (onCollaborationRequested) {
@@ -80,7 +82,7 @@ export function Chat({
     const pollInterval = setInterval(checkCollaborationRequest, 3000);
     
     return () => clearInterval(pollInterval);
-  }, [sessionCode, collaborationRequested, onCollaborationRequested]);
+  }, [sessionCode, schoolCode, collaborationRequested, onCollaborationRequested]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -143,6 +145,21 @@ export function Chat({
         setIsLoading(false);
         setCanSubmitProblem(true); // Re-enable in case user cancels
         return;
+      }
+
+      // If word problem detected, replace the image message with text
+      if (response.is_word_problem && response.word_problem_text && imageFile) {
+        // Remove the last message (the image one) and replace with word problem text
+        setMessages(prev => {
+          const updated = [...prev];
+          // Replace the last student message (the image one) with the word problem text
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            message: response.word_problem_text,
+            imageUrl: null // Remove image, show text instead
+          };
+          return updated;
+        });
       }
 
       // Update current problem info

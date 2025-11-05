@@ -11,7 +11,10 @@ import { NotFoundError, AWSError } from '../utils/errorHandler.js';
 import { generateSessionCode, validateSessionCode } from '../utils/sessionCode.js';
 
 const logger = createLogger();
-const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || 'math-phoenix-sessions';
+// Get table name dynamically to ensure Parameter Store values are loaded
+function getTableName() {
+  return process.env.DYNAMODB_TABLE_NAME || 'math-phoenix-sessions';
+}
 
 /**
  * Create a new session
@@ -37,7 +40,7 @@ export async function createSession(sessionCode = null) {
   try {
     await dynamoDocClient.send(
       new PutCommand({
-        TableName: TABLE_NAME,
+        TableName: getTableName(),
         Item: session
       })
     );
@@ -50,8 +53,16 @@ export async function createSession(sessionCode = null) {
       message: error.message,
       name: error.name,
       code: error.code,
-      tableName: TABLE_NAME
+      tableName: getTableName()
     });
+    
+    // Provide helpful error message if table doesn't exist
+    if (error.name === 'ResourceNotFoundException' || error.message?.includes('Requested resource not found')) {
+      const helpfulMessage = `DynamoDB table '${getTableName()}' not found. Run 'npm run setup:dynamodb' in the backend directory to create it.`;
+      logger.error(helpfulMessage);
+      throw new AWSError(helpfulMessage, error);
+    }
+    
     throw new AWSError(`Failed to create session: ${error.message}`, error);
   }
 }
@@ -69,7 +80,7 @@ export async function getSession(sessionCode) {
   try {
     const result = await dynamoDocClient.send(
       new GetCommand({
-        TableName: TABLE_NAME,
+        TableName: getTableName(),
         Key: { session_code: sessionCode }
       })
     );
@@ -125,7 +136,7 @@ export async function updateSession(sessionCode, updates) {
   try {
     const result = await dynamoDocClient.send(
       new UpdateCommand({
-        TableName: TABLE_NAME,
+        TableName: getTableName(),
         Key: { session_code: sessionCode },
         UpdateExpression: `SET ${updateExpressions.join(', ')}`,
         ExpressionAttributeNames: expressionAttributeNames,
@@ -328,7 +339,7 @@ export async function deleteSession(sessionCode) {
   try {
     await dynamoDocClient.send(
       new DeleteCommand({
-        TableName: TABLE_NAME,
+        TableName: getTableName(),
         Key: { session_code: sessionCode }
       })
     );

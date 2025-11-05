@@ -4,7 +4,7 @@
  */
 
 import { createSession, getSession, addProblemToSession, addToTranscript, updateSession } from '../services/sessionService.js';
-import { uploadImageToS3, extractTextFromImage, detectMultipleProblems } from '../services/imageService.js';
+import { uploadImageToS3, extractTextFromImage, detectMultipleProblems, detectAndExtractWordProblem } from '../services/imageService.js';
 import { processProblem, detectMultipleProblems as detectMultipleProblemsText, hasMathProblem, validateMultipleProblems, validateProblem } from '../services/problemService.js';
 import { generateInitialPrompt } from '../services/socraticEngine.js';
 import { collectMLData } from '../services/mlDataService.js';
@@ -55,6 +55,8 @@ export async function submitProblemHandler(req, res, next) {
     }
 
     let rawProblemText = text?.trim() || '';
+    let isWordProblem = false;
+    let extractedWordProblemText = null;
 
     // If image provided, process it
     let imageUrl = null;
@@ -84,7 +86,20 @@ export async function submitProblemHandler(req, res, next) {
         }
 
         if (ocrResult.success && ocrResult.text) {
-          rawProblemText = ocrResult.text;
+          // Check if this is a word problem and extract the full text
+          const wordProblemCheck = await detectAndExtractWordProblem(ocrResult.text);
+          
+          if (wordProblemCheck.isWordProblem) {
+            // This is a word problem - use the extracted full text
+            logger.info('Detected word problem from image, using full narrative text');
+            isWordProblem = true;
+            extractedWordProblemText = wordProblemCheck.text;
+            rawProblemText = wordProblemCheck.text;
+            // Treat as text input going forward (no need for special image processing)
+          } else {
+            // Regular math problem - use OCR text as-is
+            rawProblemText = ocrResult.text;
+          }
         } else {
           // Both OCR and Vision failed - return error with manual fallback option
           return res.status(400).json({
@@ -268,7 +283,9 @@ export async function submitProblemHandler(req, res, next) {
         difficulty: currentProblem.difficulty,
         normalized_latex: currentProblem.normalized_latex,
         image_url: currentProblem.image_url || null
-      }
+      },
+      is_word_problem: isWordProblem || false,
+      word_problem_text: extractedWordProblemText || null
     });
   } catch (error) {
     next(error);

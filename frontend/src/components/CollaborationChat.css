@@ -21,13 +21,6 @@
   font-style: italic;
 }
 
-.message {
-  max-width: 75%;
-  padding: 12px;
-  border-radius: 8px;
-  animation: fadeIn 0.3s;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -42,18 +35,19 @@
 .message {
   display: flex;
   flex-direction: column;
-  max-width: 75%;
+  width: 100%; /* Take up full available width */
   margin-bottom: 12px;
   animation: fadeIn 0.3s;
 }
 
 /* Alignment: Teacher messages always left, Student messages always right */
+/* Messages take full width, but content alignment is handled by the message-content */
 .teacher-aligned {
-  align-self: flex-start;
+  align-items: flex-start;
 }
 
 .student-aligned {
-  align-self: flex-end;
+  align-items: flex-end;
 }
 
 /* Student message styling (matches student session - orange gradient) */
@@ -104,6 +98,10 @@
 .message-content {
   word-wrap: break-word;
   line-height: 1.5;
+  padding: 12px 16px; /* Add padding inside the message bubble */
+  width: 100%; /* Take up full width of message container */
+  box-sizing: border-box;
+  display: block;
 }
 
 .chat-input-form {

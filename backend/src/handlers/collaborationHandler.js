@@ -46,6 +46,15 @@ export async function startCollaborationHandler(req, res, next) {
       collaboration_url: collaborationUrl
     });
   } catch (error) {
+    // If there's an existing collaboration, return it with the error
+    if (error.message === 'Student already has an active collaboration session' && error.existingCollaborationId) {
+      return res.status(409).json({
+        error: 'existing_collaboration',
+        message: error.message,
+        collaboration_session_id: error.existingCollaborationId,
+        collaboration_url: `/collaboration/${error.existingCollaborationId}`
+      });
+    }
     next(error);
   }
 }

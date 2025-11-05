@@ -17,24 +17,29 @@ const api = axios.create({
 /**
  * Create a new session
  */
-export async function createSession() {
-  const response = await api.post('/api/sessions', {});
+export async function createSession(schoolCode) {
+  const response = await api.post('/api/sessions', { school_code: schoolCode });
   return response.data;
 }
 
 /**
  * Get session by code
  */
-export async function getSession(sessionCode) {
-  const response = await api.get(`/api/sessions/${sessionCode}`);
+export async function getSession(sessionCode, schoolCode) {
+  const response = await api.get(`/api/sessions/${sessionCode}`, {
+    params: { school_code: schoolCode }
+  });
   return response.data;
 }
 
 /**
  * Resume session (get or create)
  */
-export async function resumeSession(sessionCode) {
-  const response = await api.post('/api/sessions', { session_code: sessionCode });
+export async function resumeSession(sessionCode, schoolCode) {
+  const response = await api.post('/api/sessions', { 
+    session_code: sessionCode,
+    school_code: schoolCode
+  });
   return response.data;
 }
 

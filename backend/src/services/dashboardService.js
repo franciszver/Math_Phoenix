@@ -72,9 +72,11 @@ export async function getAggregateStats() {
       other: 0
     },
     difficulties: {
+      very_easy: 0,
       easy: 0,
       medium: 0,
       hard: 0,
+      very_hard: 0,
       unknown: 0
     },
     // Learning assessment metrics
@@ -110,7 +112,8 @@ export async function getAggregateStats() {
 
       // Count by category
       const category = problem.category || problem.problem_info?.category || 'other';
-      if (stats.categories[category]) {
+      // Check if key exists in stats object (not just if value is truthy, since 0 is falsy)
+      if (category in stats.categories) {
         stats.categories[category]++;
       } else {
         stats.categories.other++;
@@ -118,7 +121,8 @@ export async function getAggregateStats() {
 
       // Count by difficulty
       const difficulty = problem.difficulty || problem.problem_info?.difficulty || 'unknown';
-      if (stats.difficulties[difficulty]) {
+      // Check if key exists in stats object (not just if value is truthy, since 0 is falsy)
+      if (difficulty in stats.difficulties) {
         stats.difficulties[difficulty]++;
       } else {
         stats.difficulties.unknown++;

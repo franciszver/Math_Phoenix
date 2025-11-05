@@ -6,6 +6,7 @@ import { createSession, getSession } from '../services/sessionService.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 import { validateSessionCode } from '../utils/sessionCode.js';
+import { validateSchoolCode } from '../middleware/auth.js';
 
 const logger = createLogger();
 
@@ -16,6 +17,10 @@ const logger = createLogger();
 export async function getSessionHandler(req, res, next) {
   try {
     const { code } = req.params;
+    const { school_code } = req.query;
+
+    // Validate school code
+    validateSchoolCode(school_code);
 
     if (!validateSessionCode(code)) {
       throw new ValidationError('Invalid session code format', 'session_code');
@@ -43,7 +48,13 @@ export async function getSessionHandler(req, res, next) {
  */
 export async function createOrGetSessionHandler(req, res, next) {
   try {
-    const { session_code } = req.body;
+    const { session_code, school_code } = req.body;
+
+    // Validate school code (required for both new and resume)
+    if (!school_code) {
+      throw new ValidationError('School code is required', 'school_code');
+    }
+    validateSchoolCode(school_code);
 
     // If session code provided, try to get existing session
     if (session_code) {

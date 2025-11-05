@@ -1,6 +1,7 @@
 /**
  * OpenAI Service
  * Centralized configuration for OpenAI client
+ * Uses lazy initialization to allow Parameter Store values to load first
  */
 
 import '../config/env.js'; // Load environment variables first
@@ -10,12 +11,34 @@ import { OpenAIError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
 
-if (!process.env.OPENAI_API_KEY) {
-  logger.warn('OPENAI_API_KEY not found in environment variables');
+// Lazy initialization - client is created on first access
+let _openaiClient = null;
+
+function getOpenAIClient() {
+  if (!_openaiClient) {
+    if (!process.env.OPENAI_API_KEY) {
+      logger.warn('OPENAI_API_KEY not found in environment variables');
+      // In production, Parameter Store might still be loading
+      // Allow client creation but it will fail on actual API calls
+    }
+    _openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+  return _openaiClient;
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+// Export a getter that lazily initializes the client
+export const openai = new Proxy({}, {
+  get(target, prop) {
+    const client = getOpenAIClient();
+    const value = client[prop];
+    // If it's a function, bind it to the client
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
 });
 
 /**

@@ -12,6 +12,13 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    // Production build settings
+    outDir: 'dist',
+    sourcemap: false,
+    // Environment variables are accessed via import.meta.env.VITE_API_URL
+    // Set VITE_API_URL during build: VITE_API_URL=https://api.example.com npm run build
   }
 })
 

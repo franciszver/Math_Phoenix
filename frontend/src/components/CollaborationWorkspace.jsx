@@ -29,7 +29,12 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
   const lastUpdateTimeRef = useRef(new Date().toISOString());
   const pollingIntervalRef = useRef(null);
   const canvasUpdateTimeoutRef = useRef(null);
-  const [actualIsTeacher, setActualIsTeacher] = useState(isTeacher);
+  // Initialize with teacher if token exists (more reliable than prop)
+  const [actualIsTeacher, setActualIsTeacher] = useState(() => {
+    // Check for dashboard token immediately - if present, user is teacher
+    const dashboardToken = token || localStorage.getItem('dashboardToken');
+    return !!dashboardToken || isTeacher;
+  });
 
   // Determine speaker role - verify by checking if student session matches
   useEffect(() => {
@@ -37,11 +42,15 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
       // Check if student's session code matches the collaboration's student_session_id
       const currentStudentSessionCode = studentSessionCode || localStorage.getItem('mathPhoenixSession');
       
+      // Also check for dashboard token in localStorage (in case it wasn't passed as prop)
+      const dashboardToken = token || localStorage.getItem('dashboardToken');
+      
       if (currentStudentSessionCode && session.student_session_id === currentStudentSessionCode) {
         // Student's session code matches - they're the student
         setActualIsTeacher(false);
-      } else if (token) {
+      } else if (dashboardToken) {
         // Has dashboard token and doesn't match student session - they're the teacher
+        // This ensures teachers coming from Similar Problems popup are always detected
         setActualIsTeacher(true);
       } else {
         // No token and no match - default to student (shouldn't happen, but safety fallback)
