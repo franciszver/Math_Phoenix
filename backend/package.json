@@ -12,7 +12,9 @@
     "test:api": "node scripts/test-api.js",
     "generate-demo-data": "node scripts/generate-demo-data.js",
     "setup:dynamodb": "node scripts/setup-dynamodb.js",
-    "setup:aws": "node scripts/setup-aws.js"
+    "setup:aws": "node scripts/setup-aws.js",
+    "deploy:railway": "railway up",
+    "deploy:eb": "eb deploy"
   },
   "engines": {
     "node": ">=18.0.0"
