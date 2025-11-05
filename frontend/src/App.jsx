@@ -105,14 +105,6 @@ function AppContent() {
     // Note: hasConsented stays true, so user goes to SessionEntry
   };
 
-  // Render dashboard if on dashboard route
-  if (isDashboardRoute) {
-    if (!dashboardToken) {
-      return <DashboardLogin onLogin={handleDashboardLogin} />;
-    }
-    return <Dashboard token={dashboardToken} onLogout={handleDashboardLogout} onError={setError} />;
-  }
-
   const loadSession = async (code, enteredSchoolCode) => {
     setIsLoading(true);
     setError(null);
@@ -193,6 +185,14 @@ function AppContent() {
   const handleSessionSubmit = async (code, schoolCode) => {
     await loadSession(code, schoolCode);
   };
+
+  // Render dashboard if on dashboard route (BEFORE consent check)
+  if (isDashboardRoute) {
+    if (!dashboardToken) {
+      return <DashboardLogin onLogin={handleDashboardLogin} />;
+    }
+    return <Dashboard token={dashboardToken} onLogout={handleDashboardLogout} onError={setError} />;
+  }
 
   if (!hasConsented) {
     return <ConsentPopup onAccept={handleConsentAccept} onDecline={handleConsentDecline} />;
