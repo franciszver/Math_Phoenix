@@ -1,0 +1,26 @@
+# Elastic Beanstalk ignore file
+# Similar to .gitignore but for EB deployments
+
+node_modules/
+npm-debug.log
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+coverage/
+.nyc_output/
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
+scripts/test-*.js
+scripts/generate-demo-data.js
+scripts/generate-phoenix-assets.js
+

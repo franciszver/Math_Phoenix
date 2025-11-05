@@ -6,7 +6,23 @@ It also provides a **teacher dashboard** with aggregate and per‑session insigh
 
 ---
 
-## 🚀 Getting Started
+## 🌐 Deployment
+
+**Want to host Math Phoenix for others to use?**
+
+- **Quick Start**: See [QUICKSTART.md](QUICKSTART.md) for fastest deployment (15-30 minutes)
+- **Detailed Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment options
+- **Checklist**: Use [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) to ensure nothing is missed
+
+**Deployment Options:**
+- 🎯 **Render** (Easiest) - One-click deployment with Blueprint
+- 🚀 **Railway + Vercel** - Great performance, easy setup
+- ☁️ **AWS** (Recommended for production) - Full control and scalability
+- 🐳 **Docker** - Self-hosting option
+
+---
+
+## 🚀 Getting Started (Local Development)
 
 ### Prerequisites
 - Node.js (>= 18.x recommended)
