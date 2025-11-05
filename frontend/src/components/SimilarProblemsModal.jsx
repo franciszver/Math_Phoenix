@@ -31,23 +31,25 @@ export function SimilarProblemsModal({
             <div className="problems-list">
               {problems.map((problem, index) => (
                 <div key={index} className="problem-option">
-                  <div className="problem-text">{problem.problemText}</div>
-                  <div className="problem-meta">
-                    {problem.source === 'database' && problem.similarity !== null && (
-                      <span className="similarity-score">
-                        {Math.round(problem.similarity * 100)}% similar
-                      </span>
-                    )}
-                    {problem.source === 'generated' && (
-                      <span className="generated-label">Generated</span>
-                    )}
+                  <div className="problem-header">
+                    <div className="problem-meta">
+                      {problem.source === 'database' && problem.similarity !== null && (
+                        <span className="similarity-score">
+                          {Math.round(problem.similarity * 100)}% similar
+                        </span>
+                      )}
+                      {problem.source === 'generated' && (
+                        <span className="generated-label">Generated</span>
+                      )}
+                    </div>
+                    <button
+                      className="select-btn"
+                      onClick={() => onSelect(problem)}
+                    >
+                      Select
+                    </button>
                   </div>
-                  <button
-                    className="select-btn"
-                    onClick={() => onSelect(problem)}
-                  >
-                    Select
-                  </button>
+                  <div className="problem-text">{problem.problemText}</div>
                 </div>
               ))}
             </div>
@@ -57,5 +59,6 @@ export function SimilarProblemsModal({
     </div>
   );
 }
+
 
 

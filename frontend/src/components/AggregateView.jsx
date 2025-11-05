@@ -1,6 +1,146 @@
 import { useState, useEffect } from 'react';
 import { getAggregateStats, getAllSessions } from '../services/api';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import './AggregateView.css';
+
+/**
+ * Category Pie Chart Component
+ * Displays category distribution as a pie chart
+ */
+function CategoryPieChart({ categories }) {
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+  
+  const data = [
+    { name: 'Arithmetic', value: categories.arithmetic || 0 },
+    { name: 'Algebra', value: categories.algebra || 0 },
+    { name: 'Geometry', value: categories.geometry || 0 },
+    { name: 'Word Problems', value: categories.word || 0 },
+    { name: 'Multi-step', value: categories['multi-step'] || 0 },
+    ...(categories.other > 0 ? [{ name: 'Other', value: categories.other }] : [])
+  ].filter(item => item.value > 0);
+
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  if (total === 0) {
+    return <div className="no-chart-data">No category data available</div>;
+  }
+
+  return (
+    <div className="pie-chart-container">
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value) => [`${value} problems`, 'Count']}
+          />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/**
+ * Difficulty Pie Chart Component
+ * Displays difficulty distribution as a pie chart, with zero values called out
+ */
+function DifficultyPieChart({ difficulties }) {
+  const COLORS = ['#4CAF50', '#FF9800', '#F44336', '#9E9E9E'];
+  
+  const allData = [
+    { name: 'Easy', value: difficulties.easy || 0 },
+    { name: 'Medium', value: difficulties.medium || 0 },
+    { name: 'Hard', value: difficulties.hard || 0 },
+    ...(difficulties.unknown > 0 ? [{ name: 'Unknown', value: difficulties.unknown }] : [])
+  ];
+
+  // Separate data for pie chart (non-zero) and zero values
+  const pieData = allData.filter(item => item.value > 0);
+  const zeroValues = allData.filter(item => item.value === 0);
+
+  const total = pieData.reduce((sum, item) => sum + item.value, 0);
+
+  // Create data for legend that includes all values including zeros
+  const legendData = allData.map((item, index) => ({
+    name: item.name,
+    value: item.value,
+    color: item.value > 0 ? COLORS[index % COLORS.length] : '#E0E0E0',
+    isZero: item.value === 0
+  }));
+
+  // Custom legend formatter to show zero values
+  const renderLegend = () => {
+    return (
+      <ul className="custom-legend">
+        {legendData.map((entry, index) => (
+          <li key={`item-${index}`} className={entry.isZero ? 'zero-value' : ''}>
+            <span className="legend-color" style={{ backgroundColor: entry.color }}></span>
+            <span className="legend-text">
+              {entry.name}: {entry.value} {entry.isZero && '(zero)'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  // If all values are zero, show legend only
+  if (total === 0) {
+    return (
+      <div className="pie-chart-container">
+        <div className="all-zero-chart">
+          <div className="all-zero-message">All difficulty levels have 0 problems</div>
+          {renderLegend()}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pie-chart-container">
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {pieData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value) => [`${value} problems`, 'Count']}
+          />
+          <Legend content={renderLegend} />
+        </PieChart>
+      </ResponsiveContainer>
+      {zeroValues.length > 0 && (
+        <div className="zero-values-note">
+          <strong>Note:</strong> {zeroValues.map(v => v.name).join(', ')} {zeroValues.length === 1 ? 'has' : 'have'} 0 problems
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Aggregate View Component
@@ -83,58 +223,12 @@ export function AggregateView({ token, onError, onNavigateToSession }) {
       <div className="distribution-section">
         <div className="distribution-card">
           <h3>Problems by Category</h3>
-          <div className="distribution-list">
-            <div className="distribution-item">
-              <span className="dist-label">Arithmetic</span>
-              <span className="dist-value">{stats.categories.arithmetic}</span>
-            </div>
-            <div className="distribution-item">
-              <span className="dist-label">Algebra</span>
-              <span className="dist-value">{stats.categories.algebra}</span>
-            </div>
-            <div className="distribution-item">
-              <span className="dist-label">Geometry</span>
-              <span className="dist-value">{stats.categories.geometry}</span>
-            </div>
-            <div className="distribution-item">
-              <span className="dist-label">Word Problems</span>
-              <span className="dist-value">{stats.categories.word}</span>
-            </div>
-            <div className="distribution-item">
-              <span className="dist-label">Multi-step</span>
-              <span className="dist-value">{stats.categories['multi-step']}</span>
-            </div>
-            {stats.categories.other > 0 && (
-              <div className="distribution-item">
-                <span className="dist-label">Other</span>
-                <span className="dist-value">{stats.categories.other}</span>
-              </div>
-            )}
-          </div>
+          <CategoryPieChart categories={stats.categories} />
         </div>
 
         <div className="distribution-card">
           <h3>Problems by Difficulty</h3>
-          <div className="distribution-list">
-            <div className="distribution-item">
-              <span className="dist-label">Easy</span>
-              <span className="dist-value">{stats.difficulties.easy}</span>
-            </div>
-            <div className="distribution-item">
-              <span className="dist-label">Medium</span>
-              <span className="dist-value">{stats.difficulties.medium}</span>
-            </div>
-            <div className="distribution-item">
-              <span className="dist-label">Hard</span>
-              <span className="dist-value">{stats.difficulties.hard}</span>
-            </div>
-            {stats.difficulties.unknown > 0 && (
-              <div className="distribution-item">
-                <span className="dist-label">Unknown</span>
-                <span className="dist-value">{stats.difficulties.unknown}</span>
-              </div>
-            )}
-          </div>
+          <DifficultyPieChart difficulties={stats.difficulties} />
         </div>
       </div>
 
