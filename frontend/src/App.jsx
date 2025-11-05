@@ -33,9 +33,12 @@ function AppContent() {
 
 
   // Clear dashboard token from localStorage on mount - always require password
+  // BUT preserve it on collaboration routes so teachers can be identified
   useEffect(() => {
-    localStorage.removeItem('dashboardToken');
-  }, []);
+    if (!isCollaborationRoute) {
+      localStorage.removeItem('dashboardToken');
+    }
+  }, [isCollaborationRoute]);
 
   // Clear localStorage on page load to prevent accidental session reuse
   // But don't clear if on collaboration route (we need it to identify student)
