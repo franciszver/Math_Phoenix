@@ -39,22 +39,24 @@ export function CollaborationWorkspace({ token, isTeacher = false, studentSessio
   // Determine speaker role - verify by checking if student session matches
   useEffect(() => {
     if (session) {
-      // Check if student's session code matches the collaboration's student_session_id
-      const currentStudentSessionCode = studentSessionCode || localStorage.getItem('mathPhoenixSession');
-      
       // Also check for dashboard token in localStorage (in case it wasn't passed as prop)
       const dashboardToken = token || localStorage.getItem('dashboardToken');
       
-      if (currentStudentSessionCode && session.student_session_id === currentStudentSessionCode) {
-        // Student's session code matches - they're the student
-        setActualIsTeacher(false);
-      } else if (dashboardToken) {
-        // Has dashboard token and doesn't match student session - they're the teacher
-        // This ensures teachers coming from Similar Problems popup are always detected
+      // PRIORITY 1: Check for dashboard token first - if present, user is ALWAYS a teacher
+      // This is critical for teachers navigating from the "Go to Collaboration Session" popup
+      if (dashboardToken) {
         setActualIsTeacher(true);
       } else {
-        // No token and no match - default to student (shouldn't happen, but safety fallback)
-        setActualIsTeacher(false);
+        // PRIORITY 2: Check if student's session code matches the collaboration's student_session_id
+        const currentStudentSessionCode = studentSessionCode || localStorage.getItem('mathPhoenixSession');
+        
+        if (currentStudentSessionCode && session.student_session_id === currentStudentSessionCode) {
+          // Student's session code matches - they're the student
+          setActualIsTeacher(false);
+        } else {
+          // No token and no match - default to student (shouldn't happen, but safety fallback)
+          setActualIsTeacher(false);
+        }
       }
     }
   }, [session, studentSessionCode, token]);
