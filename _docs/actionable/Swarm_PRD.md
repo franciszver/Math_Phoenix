@@ -16,6 +16,8 @@ Phase 2 expands Math Phoenix from one‑on‑one Socratic tutoring into **multi�
 - **Human oversight:** Teachers approve teaching plans before quizzes are delivered.  
 - **Transparency:** Teachers see group progress, skipped students, and compliance metrics.  
 - **Scalability:** Support up to 4 groups simultaneously, each with its own agent.  
+- **Seamless deployment:** Integrate cleanly into Render.com auto‑deploy pipelines for both frontend and backend Node services.  
+- **AWS integration:** Reuse existing DynamoDB tables and S3 buckets for Phase 2 data storage and asset handling.  
 
 ---
 
@@ -83,6 +85,10 @@ Phase 2 expands Math Phoenix from one‑on‑one Socratic tutoring into **multi�
 - **Usability:** Teacher dashboard must clearly show compliance and group summaries.  
 - **Privacy:** Use sessionIds only; store minimal PII.  
 - **Cost control:** Optimize token usage with structured prompts and external state storage.  
+- **Deployment:** Auto‑deploy via Render.com pipelines on commits to `main`.  
+- **AWS integration:**  
+  - DynamoDB tables for session state and ML data.  
+  - S3 buckets for frontend assets and student uploads.  
 
 ---
 
@@ -112,24 +118,46 @@ Phase 2 expands Math Phoenix from one‑on‑one Socratic tutoring into **multi�
 ---
 
 ## 10. Workflow Diagram (ASCII)
+
 [Orchestrator Agent] | v [Group Assignment: A-D] | v [Group Agent] ---> [Teaching Plan Draft] ---> [Teacher Approval] | | | v | [Approved Plan] v [Unified Quiz] --> [Collect Responses] --> [Classify + Highlight] | v [Socratic Dialogue referencing peer answers] | v [Teacher Dashboard: compliance + outcomes]
 
 
 ---
 
-## 11. Requirements Matrix
+## 11. Requirements Matrix (with Render.com + AWS context)
 
-| New Feature / Enhancement | Backend Services | Frontend Components | Dashboard Changes |
-|---------------------------|------------------|---------------------|------------------|
-| Orchestrator Agent        | New **Orchestration Service** to assign groups | N/A (backend only) | Display group assignments rationale |
-| Group Agents              | Extend **Socratic Engine** with group context + response classification | GroupChat component (new) | Show group compliance + skipped students |
-| Teaching Plan Approval    | Extend **Learning Assessment Service** to draft plans | PlanReviewModal (new) | Approve/reject/edit plans |
-| Unified Group Quiz        | Extend **Assessment Service** for group quiz generation | GroupQuiz component (new) | Aggregate quiz results per group |
-| Response Classification   | Extend **ML Data Service** with misconception tagging | ResponseHighlight UI (new) | Show correct/close/incorrect breakdown |
-| Timeout Handling          | Extend **Session Service** with timeout + skip logic | ParticipationPrompt (new) | Flag skipped students in compliance view |
-| Compliance Tracking       | Extend **Dashboard Service** with compliance metrics | N/A | Compliance tab with skipped counts |
-| Adaptive Difficulty       | Extend **Problem Processing Service** with dynamic difficulty | N/A | Show difficulty adaptation rationale |
+| New Feature / Enhancement | Backend Services (Node, Render.com) | Frontend Components (Node, Render.com) | Dashboard Changes | AWS Resources |
+|---------------------------|--------------------------------------|----------------------------------------|------------------|---------------|
+| Orchestrator Agent        | New **Orchestration Service** | N/A | Display group assignments rationale | DynamoDB (`math-phoenix-sessions-prod`) for group membership |
+| Group Agents              | Extend **Socratic Engine** with group context | GroupChat component (new React/Node) | Show group compliance + skipped students | DynamoDB (`math-phoenix-sessions-prod`) for per-student state |
+| Teaching Plan Approval    | Extend **Learning Assessment Service** | PlanReviewModal (new React component) | Approve/reject/edit plans | DynamoDB (`math-phoenix-ml-data-prod`) for plan metadata |
+| Unified Group Quiz        | Extend **Assessment Service** | GroupQuiz component (new React) | Aggregate quiz results per group | DynamoDB (`math-phoenix-sessions-prod`) for quiz state |
+| Response Classification   | Extend **ML Data Service** | ResponseHighlight UI | Show correct/close/incorrect breakdown | DynamoDB (`math-phoenix-ml-data-prod`) for misconception tags |
+| Timeout Handling          | Extend **Session Service** with timeout + skip logic | ParticipationPrompt (new React) | Flag skipped students in compliance view | DynamoDB (`math-phoenix-sessions-prod`) for compliance logs |
+| Compliance Tracking       | Extend **Dashboard Service** | N/A | Compliance tab with skipped counts | DynamoDB (`math-phoenix-sessions-prod`) aggregated metrics |
+| Adaptive Difficulty       | Extend **Problem Processing Service** | N/A | Show difficulty adaptation rationale | DynamoDB (`math-phoenix-ml-data-prod`) + S3 (`math-phoenix-uploads-20250103`) for problem history |
 
 ---
 
+## 12. Deployment & DevOps Considerations
+- **Hosting:** Both frontend and backend continue to run as Node services on Render.com.  
+- **Auto‑deploy:** Each commit to `main` triggers auto‑deploy for both services.  
+- **Branching strategy:**  
+  - Use feature branches for Phase 2 components.  
+  - Merge to `main` only after passing CI tests.  
+- **CI/CD testing:**  
+  - Unit tests for orchestrator and group agent logic.  
+  - Integration tests for quiz flow and dashboard compliance.  
+  - Frontend snapshot tests for new React components.  
+- **Versioning:**  
+  - API endpoints for Phase 2 should be versioned (`/api/v2/...`) to avoid breaking Phase 1 clients.  
+- **Monitoring:**  
+  - Use Render.com logs + CloudWatch structured logging (already in Phase 1) to track group agent performance.  
+- **Rollback:**  
+  - Render.com auto‑deploy rollback strategy: revert to last successful build if Phase 2 deploy fails.  
+- **AWS resource usage:**  
+  - DynamoDB tables (`math-phoenix-sessions-prod`, `math-phoenix-ml-data-prod`) store session state and ML data.  
+  - S3 buckets (`math-phoenix-frontend-prod-20251104`, `math-phoenix-uploads-20250103`) serve frontend assets and student uploads.  
+
+---
 
