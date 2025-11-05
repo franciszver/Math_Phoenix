@@ -409,6 +409,199 @@ This document outlines comprehensive test scenarios for validating the Math Phoe
 
 ---
 
+## Scenario 12: Streak Meter System
+
+**User Type:** Student  
+**Goal:** Test streak meter functionality (progress tracking and reset behavior)
+
+### Steps:
+1. Start new session and submit a problem
+2. **Test Progress Building:**
+   - Make progress responses (e.g., "I think the answer is 5")
+   - Verify streak meter increases by 20% with each progress step
+   - Verify milestone messages at 20%, 40%, 60%, 80%
+3. **Test Streak Completion:**
+   - Make 5 consecutive progress steps
+   - Verify streak meter reaches 100% and celebrates
+   - Verify streak resets to 0% and starts new streak
+4. **Test Streak Reset:**
+   - Build streak to 40% or higher
+   - Get stuck for 2+ turns to trigger hint
+   - Verify streak resets to 0% when hint is used
+   - Verify reset feedback message appears
+5. **Test No Change:**
+   - Respond with very short or neutral responses
+   - Verify streak stays unchanged
+
+### Expected Results:
+- ✅ Streak meter increases with progress (20% per step)
+- ✅ Streak completes at 100% with celebration
+- ✅ Streak resets to 0% when hint is used
+- ✅ Feedback messages appear appropriately
+- ✅ Streak meter persists across session resume
+
+---
+
+## Scenario 13: Learning Assessment (MC Quiz + Transfer Problem)
+
+**User Type:** Student  
+**Goal:** Complete learning assessment after solving a problem
+
+### Steps:
+1. Submit and solve a problem completely
+2. **MC Quiz Appears:**
+   - Verify MC quiz triggers after solution completion
+   - Verify 2-3 questions appear one at a time
+   - Answer each question correctly or incorrectly
+   - Verify quiz score is calculated
+3. **Transfer Problem:**
+   - After MC quiz, verify transfer problem appears
+   - Attempt to solve the similar problem
+   - Verify transfer success/failure is tracked
+4. **Learning Confidence:**
+   - Verify learning confidence score is calculated
+   - Verify confidence is displayed (if accessible)
+5. **Dashboard Verification:**
+   - Teacher checks dashboard
+   - Verify assessment data appears in session details
+   - Verify confidence scores visible
+
+### Expected Results:
+- ✅ MC quiz triggers after problem completion
+- ✅ Questions test understanding of approach
+- ✅ Transfer problem tests independent application
+- ✅ Confidence score calculated and stored
+- ✅ Assessment data visible in teacher dashboard
+
+---
+
+## Scenario 14: Teacher-Student Collaboration
+
+**User Type:** Teacher + Student  
+**Goal:** Test collaboration workspace functionality
+
+### Steps:
+1. **Teacher Side:**
+   - Login to dashboard
+   - Find session with student who has low confidence (< 1.0)
+   - Click "Help Student" button on problem card
+   - Verify similar problems are presented (3 options)
+   - Select a problem to work on
+   - Verify collaboration session is created
+2. **Student Side:**
+   - Student session should show blocking modal
+   - Modal indicates teacher wants to help
+   - Student clicks link to join collaboration
+3. **Collaboration Workspace:**
+   - Verify chat window appears (both sides)
+   - Verify drawing canvas appears (both sides)
+   - Test drawing tools (pen, shapes)
+   - Test chat messaging (real-time updates)
+   - Test teacher controls (enable/disable student drawing)
+   - Test canvas synchronization (drawing appears on both sides)
+4. **End Collaboration:**
+   - Teacher or student ends collaboration
+   - Verify return to normal session/dashboard
+
+### Expected Results:
+- ✅ Teacher can initiate collaboration from dashboard
+- ✅ Similar problems presented correctly
+- ✅ Student session blocked until collaboration starts
+- ✅ Chat and canvas work in real-time
+- ✅ Drawing synchronization works
+- ✅ Teacher controls work correctly
+
+---
+
+## Scenario 15: Image Verification System
+
+**User Type:** Student  
+**Goal:** Test automatic OCR error detection and correction
+
+### Steps:
+1. **Upload Image with Low OCR Confidence:**
+   - Upload image with unclear text or handwriting
+   - Verify OCR extracts text with low confidence (< 0.8)
+   - Submit problem and start conversation
+2. **Verify Verification Runs:**
+   - After tutor responds, verify verification runs automatically
+   - Check backend logs for verification attempts
+3. **Test Correction:**
+   - If OCR error detected (e.g., "1+1" instead of "1+12")
+   - Verify problem text is automatically corrected
+   - Verify tutor acknowledges correction naturally
+   - Verify conversation continues with correct problem
+4. **Test High Confidence:**
+   - Upload clear, high-quality image
+   - Verify OCR has high confidence (≥ 0.8)
+   - Verify verification is skipped (saves API costs)
+
+### Expected Results:
+- ✅ Verification runs for low-confidence OCR results
+- ✅ OCR errors are detected and corrected automatically
+- ✅ Corrections acknowledged naturally by tutor
+- ✅ High-confidence results skip verification
+- ✅ Conversation flow not disrupted by corrections
+
+---
+
+## Scenario 16: Multiple Problem Selection
+
+**User Type:** Student  
+**Goal:** Select specific problem when image contains multiple problems
+
+### Steps:
+1. Upload image containing multiple math problems
+2. **Problem Detection:**
+   - Verify system detects multiple problems
+   - Verify problem selection modal appears
+   - Verify all detected problems are listed
+3. **Select Problem:**
+   - Review each problem option
+   - Select one problem to work on
+   - Verify selected problem loads in chat
+4. **Verify Other Problems Ignored:**
+   - Verify other problems from image are not processed
+   - Verify conversation focuses on selected problem only
+
+### Expected Results:
+- ✅ Multiple problems detected correctly
+- ✅ Selection modal displays all options
+- ✅ Selected problem loads correctly
+- ✅ Other problems ignored appropriately
+
+---
+
+## Scenario 17: School Code Authentication
+
+**User Type:** Student  
+**Goal:** Test school code requirement for sessions
+
+### Steps:
+1. **Start New Session:**
+   - Enter school code (valid)
+   - Verify session created successfully
+   - Try with invalid school code
+   - Verify error message appears
+2. **Resume Session:**
+   - Enter valid session code + valid school code
+   - Verify session loads
+   - Try with invalid school code
+   - Verify error message appears
+3. **API Testing:**
+   - Test session endpoints without school code
+   - Verify 401 error returned
+   - Test with incorrect school code
+   - Verify 401 error returned
+
+### Expected Results:
+- ✅ School code required for all session operations
+- ✅ Invalid school code shows appropriate error
+- ✅ Valid school code allows access
+- ✅ API endpoints enforce authentication
+
+---
+
 ## Success Criteria
 
 All scenarios should complete successfully with:

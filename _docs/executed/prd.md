@@ -41,25 +41,41 @@ Build an **AI math tutor** that guides K‑12 students through problems using **
   > “This tutoring session will be recorded to improve your learning experience and provide teachers with progress insights. By continuing, you consent to this communication being stored and reviewed.”  
 
 ### Session Management
-- Short alphanumeric session codes (6–8 chars).  
-- Sessions expire after **30 days** (hard delete).  
+- Short alphanumeric session codes (6 chars).  
+- **School code authentication** required for all sessions (configured via `SESSION_PASSWORD`).  
+- Sessions expire after **30 days** (hard delete via DynamoDB TTL).  
 
 ### Teacher Dashboard
 - Password‑protected (single shared password).  
 - Toggle between **aggregate view** and **per‑session view**.  
 - Shows: number of problems attempted, hints used, categories, difficulty levels.  
+- **Learning assessment insights**: Display confidence scores, MC quiz results, transfer problem success rates.  
+- **Collaboration initiation**: Teachers can start collaboration sessions with students who need help.  
+- **Session deletion**: Teachers can delete sessions from the dashboard.  
+
+### Student Engagement Features
+- **Streak Meter**: Visual progress meter that builds when students make progress without hints (adds 20% per progress step, resets to 0% when hint is used, completes at 100% and celebrates).  
+- **Learning Assessment**: After completing a problem, students take a multiple-choice quiz about the approach used, then attempt a transfer problem to test understanding.  
+- **Multiple Problem Selection**: When an image contains multiple problems, students can select which one to work on.  
+
+### Image Processing
+- **Image Verification System**: Automatically verifies and corrects OCR errors for image-based problems (runs after each tutor response for low-confidence OCR results).  
+
+### Collaboration
+- **Teacher-Student Collaboration Workspace**: Real-time shared workspace with chat and drawing canvas for teachers to help students with low confidence.  
+- **Problem Similarity Matching**: Uses OpenAI embeddings and LLM generation to find similar problems for practice.  
 
 ---
 
 ## Full Feature Set (Stretch Goals / Future Work)
 
-**Note:** The MVP is now complete through Phase 3. The following features are planned for future implementation but are not part of the current MVP scope.
+**Note:** The MVP is now complete through Phase 3, with several Phase 4 features already implemented (streak meter, learning assessment, collaboration). The following features are planned for future implementation but are not part of the current MVP scope.
 
 ### High‑Value Extensions (Phase 4)
-- **Interactive Whiteboard**: Shared canvas for diagrams and annotations.  
 - **Step Visualization**: Animated breakdown of solution steps.  
 - **Voice Interface**: Text‑to‑speech for tutor responses, speech‑to‑text for student input.  
 - **ML‑based Difficulty Classification**: Train classifier on collected data for nuanced difficulty detection.  
+- ~~**Interactive Whiteboard**: Shared canvas for diagrams and annotations.~~ ✅ **IMPLEMENTED** - Collaboration workspace includes drawing canvas.  
 
 ### Polish Features (Phase 5)
 - **Animated Avatar**: 2D/3D tutor character with expressions.  

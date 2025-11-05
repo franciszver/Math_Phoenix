@@ -51,6 +51,7 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Add **Vision fallback** using OpenAI Vision API (automatic fallback).
 - [x] Normalize equations into **LaTeX** (LLM-assisted).
 - [x] Auto‑tag problems into categories (arithmetic, algebra, geometry, word, multi‑step) - rule-based.
+- [x] Implement **multiple problem detection and selection** (when image contains multiple problems, students can select which one to work on).
 
 ### Socratic Dialogue
 - [x] Implement **multi‑turn conversation engine** with OpenAI LLM.
@@ -67,6 +68,7 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 - [x] Implement **hard delete** after expiration (DynamoDB TTL handles automatically).
 - [x] Store **transcripts linked to structured steps** (full transcript + structured steps per problem).
 - [x] Enforce one problem per session at a time.
+- [x] Implement **school code authentication** (required for all session operations via `SESSION_PASSWORD`).
 
 ---
 
@@ -110,20 +112,34 @@ This document lists prioritized implementation tasks for the AI Math Tutor MVP a
 
 ---
 
-## Phase 4 – High‑Value Extensions (Stretch Goals / Future Work)
+## Phase 4 – High‑Value Extensions (Partially Implemented)
 
-**Note:** These features are planned for future implementation but are not part of the current MVP scope.
+**Note:** Some Phase 4 features have been implemented ahead of schedule. Remaining features are planned for future implementation.
 
-- [ ] Add **interactive whiteboard** (shared canvas).
+- [x] Add **interactive whiteboard** (shared canvas) - ✅ **IMPLEMENTED** - Collaboration workspace includes drawing canvas with Fabric.js.
+- [x] Add **streak graphic** feature - ✅ **IMPLEMENTED**:
+  - Visual streak meter that builds with continuous progress (adds 20% per progress step)
+  - Streak completes at 100% and celebrates
+  - Streak resets to zero when student uses a hint
+  - Any triggered hint brings the streak count back to zero
+  - Student restarts with zero streak meter after reset
+  - See `_docs/executed/streak-update-pathway.md` for implementation details
+- [x] Add **learning assessment** feature - ✅ **IMPLEMENTED**:
+  - Multiple-choice quiz about problem-solving approach after solution completion
+  - Transfer problem to test understanding
+  - Learning confidence score calculation
+  - See `_docs/executed/concept-learning-assessment.plan.md` for implementation details
+- [x] Add **teacher-student collaboration** feature - ✅ **IMPLEMENTED**:
+  - Real-time collaboration workspace with chat and drawing canvas
+  - Problem similarity matching for practice problems
+  - See `_docs/executed/teacher-student-collaboration-feature.plan.md` for implementation details
+- [x] Add **image verification system** - ✅ **IMPLEMENTED**:
+  - Automatic OCR error detection and correction
+  - Runs after each tutor response for low-confidence OCR results
+  - See `_docs/executed/image-verification-system.plan.md` for implementation details
 - [ ] Implement **step visualization animations**.
 - [ ] Add **voice interface** (speech‑to‑text + text‑to‑speech).
 - [ ] Replace rule‑based difficulty with **ML classifier** trained on collected data.
-- [ ] Add **streak graphic** feature:
-  - Visual streak meter that builds with continuous correct answers
-  - Maximum streak cap of 5 consecutive correct answers
-  - Streak resets to zero when student fails and triggers a hint
-  - Any triggered hint brings the streak count back to zero
-  - Student restarts with zero streak meter after reset
 
 ---
 
