@@ -19,6 +19,8 @@ export default defineConfig({
     sourcemap: false,
     // Environment variables are accessed via import.meta.env.VITE_API_URL
     // Set VITE_API_URL during build: VITE_API_URL=https://api.example.com npm run build
-  }
+  },
+  // Ensure public files are copied
+  publicDir: 'public'
 })
 
