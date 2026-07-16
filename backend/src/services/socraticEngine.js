@@ -7,6 +7,7 @@ import '../config/env.js';
 import { openai } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';
+import { parseLLMJson } from '../utils/parseLLMJson.js';
 
 const logger = createLogger();
 
@@ -363,11 +364,8 @@ Respond with ONLY a JSON object in this exact format:
     });
 
     const content = response.choices[0]?.message?.content?.trim() || '{}';
-    
-    // Clean up any markdown code blocks
-    const cleanedContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    
-    const result = JSON.parse(cleanedContent);
+
+    const result = parseLLMJson(content);
 
     logger.debug(`Solution completion detection: ${result.solution_completed}, correct: ${result.is_correct}`);
 
