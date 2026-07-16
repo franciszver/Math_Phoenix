@@ -59,8 +59,10 @@ export async function submitProblemHandler(req, res, next) {
     let extractedWordProblemText = null;
 
     // If image provided, process it
-    let imageUrl = null;
-    let imageKey = null;
+    // Note: images are no longer stored (vision OCR is used directly on the
+    // upload buffer), so image_url/image_key are always null in responses.
+    const imageUrl = null;
+    const imageKey = null;
     let ocrResult = null;
     if (imageFile) {
       try {
@@ -109,7 +111,6 @@ export async function submitProblemHandler(req, res, next) {
         }
       } catch (error) {
         logger.error('Error processing image:', error);
-        // Even if processing fails, image is stored
         return res.status(400).json({
           error: 'image_processing_error',
           message: 'Error processing image. Please try again or type the problem manually.',
@@ -198,16 +199,9 @@ export async function submitProblemHandler(req, res, next) {
 
     // Process problem (normalize, categorize, classify difficulty)
     const processedProblem = await processProblem(singleProblemText);
-
-    // Add image info if available
-    if (imageUrl) {
-      processedProblem.image_url = imageUrl;
-      processedProblem.image_key = imageKey;
-      // Store OCR confidence for verification optimization
-      if (ocrResult && ocrResult.confidence !== undefined) {
-        processedProblem.ocr_confidence = ocrResult.confidence;
-      }
-    }
+    // Note: image_url/image_key are never set here since images are no
+    // longer stored (see comment above); processedProblem.image_url stays
+    // undefined, which callers below already treat as null.
 
     // Add problem to session
     const updatedSession = await addProblemToSession(sessionCode, processedProblem);

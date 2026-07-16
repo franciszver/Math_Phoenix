@@ -94,17 +94,12 @@ export async function sendChatMessageHandler(req, res, next) {
       progress_made: result.step.progress_made
     });
 
-    // No image re-verification: vision OCR is authoritative, so we use the
-    // student-response processing result as-is (equivalent to the
-    // branch-not-taken path).
-    const correctedResult = result;
+    // Add step to problem
+    const updatedSession = await addStepToProblem(sessionCode, result.step);
 
-    // Add step to problem (use corrected result if verification found a mismatch)
-    const updatedSession = await addStepToProblem(sessionCode, correctedResult.step);
-
-    // Add to transcript (use corrected message if verification updated it)
+    // Add to transcript
     await addToTranscript(sessionCode, 'student', message.trim());
-    await addToTranscript(sessionCode, 'tutor', correctedResult.tutorMessage);
+    await addToTranscript(sessionCode, 'tutor', result.tutorMessage);
 
     // Get updated problem and session
     const finalSession = await getSession(sessionCode);
@@ -190,7 +185,7 @@ export async function sendChatMessageHandler(req, res, next) {
 
     const response = {
       session_code: sessionCode,
-      tutor_message: correctedResult.tutorMessage,
+      tutor_message: result.tutorMessage,
       conversation_context: {
         step_number: stepNumber,
         hints_used: updatedProblem.hints_used_total || 0,

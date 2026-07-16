@@ -11,7 +11,7 @@ const logger = createLogger();
 /**
  * Track OCR performance metrics
  * @param {Object} metrics - Performance metrics
- * @param {string} metrics.source - 'textract' or 'vision'
+ * @param {string} metrics.source - 'vision'
  * @param {boolean} metrics.success - Whether extraction succeeded
  * @param {number} metrics.confidence - Confidence score (0-1)
  * @param {number} metrics.latency - Processing time in milliseconds
