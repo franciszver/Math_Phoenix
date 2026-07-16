@@ -4,7 +4,7 @@
  */
 
 import { getSession, addStepToProblem, addToTranscript, updateSession } from '../services/sessionService.js';
-import { processStudentResponse, detectSolutionCompletion, generateTutorResponse } from '../services/socraticEngine.js';
+import { processStudentResponse, detectSolutionCompletion } from '../services/socraticEngine.js';
 import {
   extractApproachFromConversation,
   generateMCQuestions,
@@ -13,8 +13,6 @@ import {
   calculateLearningConfidence,
   getAdaptiveRecommendation
 } from '../services/learningAssessmentService.js';
-import { downloadImageFromS3, verifyProblemTextAgainstImage } from '../services/imageService.js';
-import { processProblem } from '../services/problemService.js';
 import { createChatCompletion, TEXT_MODEL } from '../services/openai.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
@@ -96,97 +94,12 @@ export async function sendChatMessageHandler(req, res, next) {
       progress_made: result.step.progress_made
     });
 
-    // Image verification: Check if problem is image-based and needs verification
-    let correctedResult = result;
-    
-    if (currentProblem.image_key && currentProblem.problem_id === session.current_problem_id) {
-      // Check OCR confidence threshold (0.8 = 80%)
-      const ocrConfidence = currentProblem.ocr_confidence;
-      const shouldVerify = !ocrConfidence || ocrConfidence < 0.8 || ocrConfidence === 0;
-      
-      if (shouldVerify) {
-        try {
-          logger.debug(`[VERIFICATION] Starting verification for problem ${currentProblem.problem_id}, OCR confidence: ${ocrConfidence || 'missing'}`);
-          
-          // Download image from S3
-          const imageBuffer = await downloadImageFromS3(currentProblem.image_key);
-          
-          if (imageBuffer) {
-            // Verify problem text against image
-            const verificationResult = await verifyProblemTextAgainstImage(
-              imageBuffer,
-              currentProblem.raw_input
-            );
-            
-            if (!verificationResult.matches && verificationResult.correctText) {
-              // Mismatch detected - correct the problem
-              const originalText = currentProblem.raw_input;
-              const correctedText = verificationResult.correctText;
-              
-              logger.info(`[VERIFICATION] Correction detected: "${originalText.substring(0, 50)}..." → "${correctedText.substring(0, 50)}..."`);
-              
-              // Update problem with corrected text
-              currentProblem.raw_input = correctedText;
-              
-              // Re-process problem (updates LaTeX, category, difficulty)
-              const reprocessedProblem = await processProblem(correctedText);
-              currentProblem.normalized_latex = reprocessedProblem.normalized_latex;
-              currentProblem.category = reprocessedProblem.category;
-              currentProblem.difficulty = reprocessedProblem.difficulty;
-              
-              // Re-generate tutor response with correction context
-              const correctedTutorResponse = await generateTutorResponse({
-                problemText: correctedText,
-                normalizedLatex: reprocessedProblem.normalized_latex,
-                category: reprocessedProblem.category,
-                studentResponse: message.trim(),
-                conversationHistory: steps,
-                shouldProvideHint: result.step.hint_used,
-                correctionContext: {
-                  originalText,
-                  correctedText
-                }
-              });
-              
-              // Update result with corrected response
-              correctedResult = {
-                ...result,
-                tutorMessage: correctedTutorResponse.message,
-                step: {
-                  ...result.step,
-                  tutor_prompt: correctedTutorResponse.message
-                }
-              };
-              
-              // Update session with corrected problem
-              const sessionForUpdate = await getSession(sessionCode);
-              const updatedProblems = sessionForUpdate.problems.map(p =>
-                p.problem_id === currentProblem.problem_id ? currentProblem : p
-              );
-              await updateSession(sessionCode, { problems: updatedProblems });
-              
-              logger.info(`[VERIFICATION] Problem corrected and response regenerated`);
-            } else {
-              logger.debug(`[VERIFICATION] Text matches image, no correction needed`);
-            }
-          } else {
-            logger.warn(`[VERIFICATION] Failed to download image from S3, skipping verification`);
-          }
-        } catch (error) {
-          // Graceful degradation: continue with original response
-          logger.error(`[VERIFICATION] Error during verification:`, error);
-        }
-      } else {
-        logger.debug(`[VERIFICATION] Skipping verification - high OCR confidence: ${ocrConfidence}`);
-      }
-    }
+    // Add step to problem
+    const updatedSession = await addStepToProblem(sessionCode, result.step);
 
-    // Add step to problem (use corrected result if verification found a mismatch)
-    const updatedSession = await addStepToProblem(sessionCode, correctedResult.step);
-
-    // Add to transcript (use corrected message if verification updated it)
+    // Add to transcript
     await addToTranscript(sessionCode, 'student', message.trim());
-    await addToTranscript(sessionCode, 'tutor', correctedResult.tutorMessage);
+    await addToTranscript(sessionCode, 'tutor', result.tutorMessage);
 
     // Get updated problem and session
     const finalSession = await getSession(sessionCode);
@@ -272,7 +185,7 @@ export async function sendChatMessageHandler(req, res, next) {
 
     const response = {
       session_code: sessionCode,
-      tutor_message: correctedResult.tutorMessage,
+      tutor_message: result.tutorMessage,
       conversation_context: {
         step_number: stepNumber,
         hints_used: updatedProblem.hints_used_total || 0,

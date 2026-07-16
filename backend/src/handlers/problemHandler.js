@@ -4,7 +4,7 @@
  */
 
 import { createSession, getSession, addProblemToSession, addToTranscript, updateSession } from '../services/sessionService.js';
-import { uploadImageToS3, extractTextFromImage, detectMultipleProblems, detectAndExtractWordProblem } from '../services/imageService.js';
+import { extractTextFromImage, detectMultipleProblems, detectAndExtractWordProblem } from '../services/imageService.js';
 import { processProblem, detectMultipleProblems as detectMultipleProblemsText, hasMathProblem, validateMultipleProblems, validateProblem } from '../services/problemService.js';
 import { generateInitialPrompt } from '../services/socraticEngine.js';
 import { collectMLData } from '../services/mlDataService.js';
@@ -59,16 +59,13 @@ export async function submitProblemHandler(req, res, next) {
     let extractedWordProblemText = null;
 
     // If image provided, process it
-    let imageUrl = null;
-    let imageKey = null;
+    // Note: images are no longer stored (vision OCR is used directly on the
+    // upload buffer), so image_url/image_key are always null in responses.
+    const imageUrl = null;
+    const imageKey = null;
     let ocrResult = null;
     if (imageFile) {
       try {
-        // Upload to S3 (always store for debugging)
-        const uploadResult = await uploadImageToS3(imageFile.buffer, imageFile.originalname);
-        imageUrl = uploadResult.url;
-        imageKey = uploadResult.key;
-
         // Extract text from image
         ocrResult = await extractTextFromImage(imageFile.buffer);
 
@@ -114,7 +111,6 @@ export async function submitProblemHandler(req, res, next) {
         }
       } catch (error) {
         logger.error('Error processing image:', error);
-        // Even if processing fails, image is stored
         return res.status(400).json({
           error: 'image_processing_error',
           message: 'Error processing image. Please try again or type the problem manually.',
@@ -203,16 +199,9 @@ export async function submitProblemHandler(req, res, next) {
 
     // Process problem (normalize, categorize, classify difficulty)
     const processedProblem = await processProblem(singleProblemText);
-
-    // Add image info if available
-    if (imageUrl) {
-      processedProblem.image_url = imageUrl;
-      processedProblem.image_key = imageKey;
-      // Store OCR confidence for verification optimization
-      if (ocrResult && ocrResult.confidence !== undefined) {
-        processedProblem.ocr_confidence = ocrResult.confidence;
-      }
-    }
+    // Note: image_url/image_key are never set here since images are no
+    // longer stored (see comment above); processedProblem.image_url stays
+    // undefined, which callers below already treat as null.
 
     // Add problem to session
     const updatedSession = await addProblemToSession(sessionCode, processedProblem);
@@ -330,11 +319,7 @@ export async function selectProblemHandler(req, res, next) {
 
     // Add image info if available
     if (imageKey) {
-      // Reconstruct image URL from key
-      const region = process.env.AWS_REGION || 'us-east-1';
-      const bucketName = process.env.S3_BUCKET_NAME || 'math-phoenix-uploads-20250103';
-      const imageUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${imageKey}`;
-      processedProblem.image_url = imageUrl;
+      processedProblem.image_url = null;
       processedProblem.image_key = imageKey;
     }
 
