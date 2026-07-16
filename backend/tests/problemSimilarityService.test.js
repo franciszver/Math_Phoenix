@@ -1,7 +1,13 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { __setChatCompletionOverride } from '../src/services/openai.js';
-import { getSimilarProblemOptions } from '../src/services/problemSimilarityService.js';
+
+// TIMEOUT_MS is read from SIMILARITY_TIMEOUT_MS at module load time, so set it
+// small before importing problemSimilarityService.js (this file runs in its
+// own process under node --test, so this doesn't affect other test files).
+process.env.SIMILARITY_TIMEOUT_MS = '200';
+
+const { __setChatCompletionOverride } = await import('../src/services/openai.js');
+const { getSimilarProblemOptions } = await import('../src/services/problemSimilarityService.js');
 
 afterEach(() => {
   __setChatCompletionOverride(null);
@@ -32,7 +38,7 @@ test('returns up to 3 generated options when the LLM returns a numbered list', a
   }
 });
 
-test('resolves within timeout with empty results when the LLM never resolves', { timeout: 8000 }, async () => {
+test('resolves within timeout with empty results when the LLM never resolves', async () => {
   __setChatCompletionOverride(() => new Promise(() => {}));
 
   const result = await getSimilarProblemOptions(originalProblem);

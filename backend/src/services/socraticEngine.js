@@ -63,7 +63,7 @@ Only respond with YES or NO followed by the formula name if applicable.`;
           content: prompt
         }
       ],
-      max_tokens: 50,
+      max_tokens: 300,
       temperature: 0.2
     });
 
@@ -141,7 +141,7 @@ Only respond with YES or NO.`;
           content: prompt
         }
       ],
-      max_tokens: 10,
+      max_tokens: 300,
       temperature: 0.1
     });
 
@@ -359,7 +359,7 @@ Respond with ONLY a JSON object in this exact format:
           content: prompt
         }
       ],
-      max_tokens: 150,
+      max_tokens: 400,
       temperature: 0.3
     });
 
@@ -526,7 +526,7 @@ export async function generateTutorResponse(context) {
     const response = await createChatCompletion({
       model: TEXT_MODEL,
       messages,
-      max_tokens: 200,
+      max_tokens: 800,
       temperature: 0.7
     });
 

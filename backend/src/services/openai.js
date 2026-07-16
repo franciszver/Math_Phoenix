@@ -23,7 +23,11 @@ function getOpenAIClient() {
     }
     _openaiClient = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY
+      apiKey: process.env.OPENROUTER_API_KEY,
+      // Fail fast: createChatCompletion does its own single fallback-model
+      // retry; the SDK's default internal retries (2x with backoff) stack
+      // with it and balloon worst-case latency on free-tier 429s.
+      maxRetries: 0
     });
   }
   return _openaiClient;
@@ -72,19 +76,49 @@ export function validateOpenAIConfig() {
   return true;
 }
 
+// Detects OpenRouter free-tier responses that are "successful" (HTTP 200 / no
+// thrown error) but carry no usable content: in-band {error} bodies, missing
+// choices, or empty message content (e.g. a reasoning model that burned its
+// whole max_tokens budget on internal reasoning before producing any text).
+function isEmptyOrErrorResponse(response) {
+  if (!response) return true;
+  if (response.error) return true;
+  const choice = response.choices?.[0];
+  if (!choice) return true;
+  const content = choice.message?.content;
+  if (content === null || content === '') return true;
+  return false;
+}
+
 /**
  * Create a chat completion, retrying once with a fallback model on
- * rate-limit (429) or server (5xx) errors.
+ * rate-limit (429) or server (5xx) errors, or on a "successful" response
+ * that has no usable content (in-band error body, or reasoning budget
+ * exhausted before any content was produced).
  */
 export async function createChatCompletion(params) {
+  const fallbackModel = params.model === VISION_MODEL ? VISION_MODEL_FALLBACK : TEXT_MODEL_FALLBACK;
   try {
-    return await callChatCompletion(params);
+    const response = await callChatCompletion(params);
+    if (isEmptyOrErrorResponse(response)) {
+      logger.warn(`Empty/error-shaped completion from model ${params.model}, retrying with fallback model ${fallbackModel}`);
+      const fallbackResponse = await callChatCompletion({ ...params, model: fallbackModel });
+      if (isEmptyOrErrorResponse(fallbackResponse)) {
+        throw new OpenAIError('Empty completion from model (reasoning budget exhausted?)');
+      }
+      return fallbackResponse;
+    }
+    return response;
   } catch (error) {
+    if (error instanceof OpenAIError) throw error;
     const status = error?.status ?? error?.response?.status;
     if (status === 429 || status >= 500) {
-      const fallbackModel = params.model === VISION_MODEL ? VISION_MODEL_FALLBACK : TEXT_MODEL_FALLBACK;
       logger.warn(`Chat completion failed with status ${status} for model ${params.model}, retrying with fallback model ${fallbackModel}`);
-      return callChatCompletion({ ...params, model: fallbackModel });
+      const fallbackResponse = await callChatCompletion({ ...params, model: fallbackModel });
+      if (isEmptyOrErrorResponse(fallbackResponse)) {
+        throw new OpenAIError('Empty completion from model (reasoning budget exhausted?)');
+      }
+      return fallbackResponse;
     }
     throw error;
   }
