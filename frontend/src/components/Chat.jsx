@@ -14,6 +14,23 @@ import { sendChatMessage, submitProblem, selectProblem, getSession } from '../se
 import './Chat.css';
 
 /**
+ * Extract the message/code pair from a backend error response.
+ * Backend returns the error code directly as the `error` property (with the
+ * message as a sibling field), or nested as `error.{message, code}`.
+ * @param {*} error - Axios error
+ * @param {string} fallbackMessage - Message to use if none can be extracted
+ * @returns {{ message: string, code: string|undefined }}
+ */
+function extractBackendError(error, fallbackMessage) {
+  const rawError = error.response?.data?.error;
+  const errorData = (rawError && typeof rawError === 'object') ? rawError : {};
+  const message = (typeof rawError === 'string' ? error.response?.data?.message : errorData.message)
+    || error.message || fallbackMessage;
+  const code = typeof rawError === 'string' ? rawError : errorData.code;
+  return { message, code };
+}
+
+/**
  * Chat Component
  * Main chat interface for the math tutoring session
  */
@@ -190,12 +207,7 @@ export function Chat({
       // Remove the student message that was added (since submission failed)
       setMessages(prev => prev.slice(0, -1));
       
-      const errorData = error.response?.data?.error || {};
-      const errorMessage = errorData.message || error.message || 'Failed to submit problem';
-      // Backend returns error code directly as error property, or nested in error.code
-      const errorCode = typeof error.response?.data?.error === 'string' 
-        ? error.response.data.error 
-        : errorData.code;
+      const { message: errorMessage, code: errorCode } = extractBackendError(error, 'Failed to submit problem');
       
       // Check if it's the "already active problem" error
       if (errorMessage.includes('already active') || errorMessage.includes('Complete it before')) {
@@ -279,7 +291,7 @@ export function Chat({
       setMultipleProblems(null);
     } catch (error) {
       console.error('Error selecting problem:', error);
-      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to select problem';
+      const { message: errorMessage } = extractBackendError(error, 'Failed to select problem');
       onError?.(errorMessage);
       setCanSubmitProblem(true);
     } finally {

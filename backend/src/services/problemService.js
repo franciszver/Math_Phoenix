@@ -10,6 +10,36 @@ import { OpenAIError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
 
+// Only digits, single-letter variables, math operators/punctuation, whitespace,
+// and a handful of common math symbols (%, √). Deliberately conservative:
+// any run of 2+ letters disqualifies the text UNLESS it's one of a small set
+// of recognized function names (sin/cos/tan/log/sqrt) - anything else falls
+// through to the LLM check.
+const ALLOWED_CHARS_REGEX = /^[0-9a-zA-Z%√+\-*/^=<>().,\s]+$/;
+const ALLOWED_FUNCTION_NAMES = new Set(['sin', 'cos', 'tan', 'log', 'sqrt']);
+const HAS_DIGIT_REGEX = /\d/;
+const HAS_OPERATOR_REGEX = /[+\-*/^=<>%]/;
+
+/**
+ * Determine whether text is a bare math expression/equation (e.g. "1+2",
+ * "3x - 4 = 11") with no prose, so it can bypass the LLM validity check.
+ *
+ * Requires: only allowed characters, no letter run of 2+ chars other than a
+ * recognized function name (checked without `\b`, since `\b` never fires
+ * between adjacent digits and letters and would otherwise let words like
+ * "1shit2" slip through undetected), and at least one digit plus one
+ * operator so degenerate strings like "+++" or "111111" don't fast-path.
+ * @param {string} text - Trimmed problem text
+ * @returns {boolean}
+ */
+function isBareMathExpression(text) {
+  if (!ALLOWED_CHARS_REGEX.test(text)) return false;
+  if (!HAS_DIGIT_REGEX.test(text) || !HAS_OPERATOR_REGEX.test(text)) return false;
+
+  const letterRuns = text.match(/[a-zA-Z]{2,}/g) || [];
+  return letterRuns.every(run => ALLOWED_FUNCTION_NAMES.has(run.toLowerCase()));
+}
+
 /**
  * Normalize math problem to LaTeX using LLM
  * @param {string} rawText - Raw text from OCR or user input
@@ -298,8 +328,15 @@ export async function validateProblem(text) {
     return { valid: false, reason: 'Problem text is empty' };
   }
 
+  // Deterministic fast-path: a bare math expression/equation (e.g. "1+2",
+  // "3x - 4 = 11") is a valid problem even without a posed question, so skip
+  // the LLM entirely to avoid nondeterministic false negatives.
+  if (isBareMathExpression(text.trim())) {
+    return { valid: true, reason: null };
+  }
+
   try {
-    const prompt = `Is this a valid, complete math problem? Respond with "VALID" or "INVALID" followed by a brief reason.
+    const prompt = `Is this a valid, complete math problem? Respond with "VALID" or "INVALID" followed by a brief reason. Note: a bare math expression or equation without an explicit question (e.g. "1+2" or "3x - 4 = 11") is a valid problem - interpret it as an instruction to evaluate or solve it.
 
 Problem: "${text}"`;
 
@@ -308,7 +345,7 @@ Problem: "${text}"`;
       messages: [
         {
           role: 'system',
-          content: 'You are a math problem validator. Determine if text is a valid, complete, solvable math problem.'
+          content: 'You are a math problem validator. Determine if text is a valid, complete, solvable math problem. Bare math expressions or equations without an explicit question are valid problems (interpret as "evaluate/solve this").'
         },
         {
           role: 'user',
