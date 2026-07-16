@@ -4,52 +4,23 @@
  */
 
 import '../config/env.js';
-import { dynamoDocClient } from './aws.js';
-import { ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { sessionStore } from './memoryStore.js';
 import { createLogger } from '../utils/logger.js';
-import { AWSError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
-const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || 'math-phoenix-sessions';
 
 /**
- * Get all sessions from DynamoDB
+ * Get all sessions from the in-memory store
  * @returns {Promise<Array>} Array of session objects
  */
 export async function getAllSessions() {
-  try {
-    const sessions = [];
-    let lastEvaluatedKey = null;
+  const now = Math.floor(Date.now() / 1000);
+  const sessions = sessionStore.scanAll().filter(
+    session => !session.expires_at || session.expires_at >= now
+  );
 
-    do {
-      const params = {
-        TableName: TABLE_NAME
-      };
-
-      if (lastEvaluatedKey) {
-        params.ExclusiveStartKey = lastEvaluatedKey;
-      }
-
-      const result = await dynamoDocClient.send(new ScanCommand(params));
-      
-      if (result.Items) {
-        // Filter out expired sessions
-        const now = Math.floor(Date.now() / 1000);
-        const activeSessions = result.Items.filter(
-          session => !session.expires_at || session.expires_at >= now
-        );
-        sessions.push(...activeSessions);
-      }
-
-      lastEvaluatedKey = result.LastEvaluatedKey;
-    } while (lastEvaluatedKey);
-
-    logger.info(`Retrieved ${sessions.length} active sessions`);
-    return sessions;
-  } catch (error) {
-    logger.error('Error scanning sessions:', error);
-    throw new AWSError('Failed to retrieve sessions', error);
-  }
+  logger.info(`Retrieved ${sessions.length} active sessions`);
+  return sessions;
 }
 
 /**

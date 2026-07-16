@@ -1,18 +1,16 @@
 /**
  * Collaboration Session Management Service
- * Handles DynamoDB operations for collaboration sessions
+ * Handles in-memory operations for collaboration sessions
  */
 
 import '../config/env.js';
-import { dynamoDocClient } from './aws.js';
-import { PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { sessionStore } from './memoryStore.js';
 import { createLogger } from '../utils/logger.js';
 import { NotFoundError, AWSError } from '../utils/errorHandler.js';
 import { generateSessionCode } from '../utils/sessionCode.js';
 import { getSession, updateSession } from './sessionService.js';
 
 const logger = createLogger();
-const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || 'math-phoenix-sessions';
 
 /**
  * Generate collaboration session ID
@@ -64,12 +62,7 @@ export async function createCollaborationSession(studentSessionId, selectedProbl
   };
 
   try {
-    await dynamoDocClient.send(
-      new PutCommand({
-        TableName: TABLE_NAME,
-        Item: collaborationSession
-      })
-    );
+    sessionStore.put(collabSessionId, collaborationSession);
 
     // Set collaboration_requested flag on student session
     await updateSession(studentSessionId, {
@@ -121,24 +114,19 @@ export async function getCollaborationSession(collabSessionId) {
   }
 
   try {
-    const result = await dynamoDocClient.send(
-      new GetCommand({
-        TableName: TABLE_NAME,
-        Key: { session_code: collabSessionId } // Use session_code as primary key
-      })
-    );
+    const item = sessionStore.get(collabSessionId);
 
-    if (!result.Item) {
+    if (!item) {
       throw new NotFoundError('Collaboration session');
     }
 
     // Check if session is expired
     const now = Math.floor(Date.now() / 1000);
-    if (result.Item.expires_at && result.Item.expires_at < now) {
+    if (item.expires_at && item.expires_at < now) {
       throw new NotFoundError('Collaboration session has expired');
     }
 
-    return result.Item;
+    return item;
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
@@ -219,34 +207,11 @@ async function updateCollaborationSession(collabSessionId, updates) {
   // Verify session exists
   await getCollaborationSession(collabSessionId);
 
-  // Build update expression
-  const updateExpressions = [];
-  const expressionAttributeNames = {};
-  const expressionAttributeValues = {};
-
-  Object.keys(updates).forEach((key, index) => {
-    const attrName = `#attr${index}`;
-    const attrValue = `:val${index}`;
-    
-    updateExpressions.push(`${attrName} = ${attrValue}`);
-    expressionAttributeNames[attrName] = key;
-    expressionAttributeValues[attrValue] = updates[key];
-  });
-
   try {
-    const result = await dynamoDocClient.send(
-      new UpdateCommand({
-        TableName: TABLE_NAME,
-        Key: { session_code: collabSessionId }, // Use session_code as primary key
-        UpdateExpression: `SET ${updateExpressions.join(', ')}`,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        ReturnValues: 'ALL_NEW'
-      })
-    );
+    const updated = sessionStore.merge(collabSessionId, updates);
 
     logger.debug(`Collaboration session updated: ${collabSessionId}`);
-    return result.Attributes;
+    return updated;
   } catch (error) {
     logger.error('Error updating collaboration session:', error);
     throw new AWSError('Failed to update collaboration session', error);

@@ -1,20 +1,15 @@
 /**
  * Session Management Service
- * Handles DynamoDB operations for session storage
+ * Handles in-memory session storage
  */
 
 import '../config/env.js';
-import { dynamoDocClient } from './aws.js';
-import { PutCommand, GetCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { sessionStore } from './memoryStore.js';
 import { createLogger } from '../utils/logger.js';
 import { NotFoundError, AWSError } from '../utils/errorHandler.js';
 import { generateSessionCode, validateSessionCode } from '../utils/sessionCode.js';
 
 const logger = createLogger();
-// Get table name dynamically to ensure Parameter Store values are loaded
-function getTableName() {
-  return process.env.DYNAMODB_TABLE_NAME || 'math-phoenix-sessions';
-}
 
 /**
  * Create a new session
@@ -38,12 +33,7 @@ export async function createSession(sessionCode = null) {
   };
 
   try {
-    await dynamoDocClient.send(
-      new PutCommand({
-        TableName: getTableName(),
-        Item: session
-      })
-    );
+    sessionStore.put(code, session);
 
     logger.info(`Session created: ${code}`);
     return session;
@@ -52,17 +42,9 @@ export async function createSession(sessionCode = null) {
     logger.error('Error details:', {
       message: error.message,
       name: error.name,
-      code: error.code,
-      tableName: getTableName()
+      code: error.code
     });
-    
-    // Provide helpful error message if table doesn't exist
-    if (error.name === 'ResourceNotFoundException' || error.message?.includes('Requested resource not found')) {
-      const helpfulMessage = `DynamoDB table '${getTableName()}' not found. Run 'npm run setup:dynamodb' in the backend directory to create it.`;
-      logger.error(helpfulMessage);
-      throw new AWSError(helpfulMessage, error);
-    }
-    
+
     throw new AWSError(`Failed to create session: ${error.message}`, error);
   }
 }
@@ -78,24 +60,19 @@ export async function getSession(sessionCode) {
   }
 
   try {
-    const result = await dynamoDocClient.send(
-      new GetCommand({
-        TableName: getTableName(),
-        Key: { session_code: sessionCode }
-      })
-    );
+    const item = sessionStore.get(sessionCode);
 
-    if (!result.Item) {
+    if (!item) {
       throw new NotFoundError('Session');
     }
 
     // Check if session is expired (TTL handles deletion, but check for safety)
     const now = Math.floor(Date.now() / 1000);
-    if (result.Item.expires_at && result.Item.expires_at < now) {
+    if (item.expires_at && item.expires_at < now) {
       throw new NotFoundError('Session has expired');
     }
 
-    return result.Item;
+    return item;
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
@@ -119,34 +96,11 @@ export async function updateSession(sessionCode, updates) {
   // First verify session exists
   await getSession(sessionCode);
 
-  // Build update expression
-  const updateExpressions = [];
-  const expressionAttributeNames = {};
-  const expressionAttributeValues = {};
-
-  Object.keys(updates).forEach((key, index) => {
-    const attrName = `#attr${index}`;
-    const attrValue = `:val${index}`;
-    
-    updateExpressions.push(`${attrName} = ${attrValue}`);
-    expressionAttributeNames[attrName] = key;
-    expressionAttributeValues[attrValue] = updates[key];
-  });
-
   try {
-    const result = await dynamoDocClient.send(
-      new UpdateCommand({
-        TableName: getTableName(),
-        Key: { session_code: sessionCode },
-        UpdateExpression: `SET ${updateExpressions.join(', ')}`,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        ReturnValues: 'ALL_NEW'
-      })
-    );
+    const updated = sessionStore.merge(sessionCode, updates);
 
     logger.debug(`Session updated: ${sessionCode}`);
-    return result.Attributes;
+    return updated;
   } catch (error) {
     logger.error('Error updating session:', error);
     throw new AWSError('Failed to update session', error);
@@ -161,7 +115,7 @@ export async function updateSession(sessionCode, updates) {
  */
 export async function addProblemToSession(sessionCode, problem) {
   const session = await getSession(sessionCode);
-  
+
   // Check if there's already an active problem (one problem at a time)
   const activeProblem = session.problems?.find(p => !p.completed);
   if (activeProblem) {
@@ -191,7 +145,7 @@ export async function addProblemToSession(sessionCode, problem) {
  */
 export async function addStepToProblem(sessionCode, step) {
   const session = await getSession(sessionCode);
-  
+
   if (!session.current_problem_id) {
     throw new Error('No active problem in this session');
   }
@@ -219,20 +173,20 @@ export async function addStepToProblem(sessionCode, step) {
   }
 
   // Update the problem in the problems array
-  const updatedProblems = session.problems.map(p => 
+  const updatedProblems = session.problems.map(p =>
     p.problem_id === session.current_problem_id ? problem : p
   );
 
   // Update streak meter
   const streakUpdates = updateStreakMeter(session, step);
-  
+
   logger.debug(`[STREAK] addStepToProblem: streak updates applied`, {
     sessionCode,
     problemId: problem.problem_id,
     stepNumber: step.step_number,
     streakUpdates
   });
-  
+
   const sessionUpdates = {
     problems: updatedProblems,
     ...streakUpdates
@@ -273,7 +227,7 @@ function updateStreakMeter(session, step) {
     const previousProgress = streakProgress;
     streakProgress = Math.min(100, streakProgress + 20);
     logger.info(`[STREAK] INCREASE: ${previousProgress}% → ${streakProgress}% (+20%)`);
-    
+
     // Check if streak meter is complete
     if (streakProgress >= 100) {
       streakCompletions = (streakCompletions || 0) + 1;
@@ -309,7 +263,7 @@ function updateStreakMeter(session, step) {
  */
 export async function addToTranscript(sessionCode, speaker, message) {
   const session = await getSession(sessionCode);
-  
+
   const transcriptEntry = {
     speaker,
     message,
@@ -337,12 +291,7 @@ export async function deleteSession(sessionCode) {
   await getSession(sessionCode);
 
   try {
-    await dynamoDocClient.send(
-      new DeleteCommand({
-        TableName: getTableName(),
-        Key: { session_code: sessionCode }
-      })
-    );
+    sessionStore.delete(sessionCode);
 
     logger.info(`Session deleted: ${sessionCode}`);
   } catch (error) {
@@ -350,4 +299,3 @@ export async function deleteSession(sessionCode) {
     throw new AWSError('Failed to delete session', error);
   }
 }
-
