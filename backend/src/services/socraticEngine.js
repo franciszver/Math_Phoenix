@@ -17,7 +17,7 @@ const logger = createLogger();
  * @param {string} category - Problem category
  * @returns {Promise<Object>} Result with requiresFormula boolean and suggested formula name
  */
-async function detectFormulaRequirement(problemText, category) {
+export async function detectFormulaRequirement(problemText, category) {
   // Rule-based checks for common formula-requiring problems
   const formulaPatterns = {
     'Pythagorean theorem': /pythagorean|right triangle|hypotenuse|a² \+ b²|a\^2 \+ b\^2/i,
@@ -111,7 +111,7 @@ function hasAskedAboutFormula(steps) {
  * @param {string} problemText - Problem text
  * @returns {Promise<Object>} Result with knowsFormula boolean and confidence
  */
-async function evaluateFormulaKnowledge(studentResponse, expectedFormulaName, problemText) {
+export async function evaluateFormulaKnowledge(studentResponse, expectedFormulaName, problemText) {
   if (!studentResponse || !expectedFormulaName) {
     return { knowsFormula: false, confidence: 0 };
   }

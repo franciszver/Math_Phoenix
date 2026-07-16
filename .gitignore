@@ -35,6 +35,9 @@ coverage/
 # Local planning docs (not committed)
 _docs/plans/
 
+# Eval run reports (regenerated per run, not committed)
+backend/evals/reports/
+
 # Temporary files
 *.tmp
 *.temp
