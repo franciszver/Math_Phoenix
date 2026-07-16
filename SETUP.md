@@ -51,17 +51,6 @@ cd backend
 npm run test:vision
 ```
 
-### Verify all configuration
-```bash
-cd backend
-npm run verify
-```
-
-For full verification including API connection test:
-```bash
-npm run verify:api
-```
-
 ## Step 4: Start Development Servers
 
 ### Terminal 1: Backend

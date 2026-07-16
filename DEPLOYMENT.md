@@ -164,10 +164,6 @@ railway logs
 
 ### 3. Set Up Monitoring (Optional)
 
-#### AWS CloudWatch
-- Automatically enabled for Elastic Beanstalk
-- Set up alarms for errors, latency, etc.
-
 #### External Monitoring
 - [UptimeRobot](https://uptimerobot.com/) - Free uptime monitoring
 - [Sentry](https://sentry.io/) - Error tracking
@@ -261,7 +257,6 @@ cd frontend && vercel --prod
 
 ## 📚 Additional Resources
 
-- [AWS Elastic Beanstalk Documentation](https://docs.aws.amazon.com/elasticbeanstalk/)
 - [Vercel Documentation](https://vercel.com/docs)
 - [Railway Documentation](https://docs.railway.app/)
 - [Render Documentation](https://render.com/docs)
@@ -274,7 +269,6 @@ If you encounter issues during deployment:
 1. Check the logs (see "Monitor Logs" section above)
 2. Review the troubleshooting section
 3. Ensure all environment variables are set correctly
-4. Verify AWS resources are created and accessible
 
 ---
 

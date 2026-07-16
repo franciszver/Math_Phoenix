@@ -206,7 +206,7 @@ curl https://your-backend-url/health
 ## 🆘 Need Help?
 
 - Check [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions
-- Review [SETUP.md](SETUP.md) for AWS configuration
+- Review [SETUP.md](SETUP.md) for environment variable configuration
 - Check logs for error messages
 - Verify all environment variables are set correctly
 

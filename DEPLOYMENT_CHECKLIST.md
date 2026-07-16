@@ -58,8 +58,7 @@ Use this checklist to ensure a smooth deployment process.
 - [ ] Health check endpoint accessible: `GET /health`
 - [ ] Create session works: `POST /api/sessions`
 - [ ] Backend logs show no errors
-- [ ] AWS resources accessible from backend
-- [ ] OpenAI API calls working
+- [ ] OpenRouter API calls working
 
 ### Frontend Tests
 - [ ] Frontend loads without errors
@@ -93,7 +92,6 @@ Use this checklist to ensure a smooth deployment process.
 - [ ] `.env` file NOT committed to Git
 - [ ] All secrets stored as environment variables
 - [ ] Strong passwords used for dashboard
-- [ ] AWS access keys rotated regularly (recommended)
 
 ### Network Security
 - [ ] HTTPS enabled for frontend
@@ -122,7 +120,6 @@ Use this checklist to ensure a smooth deployment process.
 
 ### Analytics
 - [ ] Usage analytics configured (optional)
-- [ ] CloudWatch metrics enabled (AWS only)
 - [ ] Log aggregation configured
 
 ## 🌐 Domain & DNS (Optional)
@@ -201,8 +198,7 @@ Use this checklist to ensure a smooth deployment process.
 
 ## 📞 Emergency Contacts
 
-- **AWS Support**: [AWS Support Center](https://console.aws.amazon.com/support/)
-- **OpenAI Support**: [OpenAI Help Center](https://help.openai.com/)
+- **OpenRouter Support**: [OpenRouter Help](https://openrouter.ai/docs)
 - **Render Support**: [Render Support](https://render.com/support)
 - **Railway Support**: [Railway Help](https://railway.app/help)
 - **Vercel Support**: [Vercel Support](https://vercel.com/support)
