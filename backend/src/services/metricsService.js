@@ -45,14 +45,6 @@ export function trackOCRMetrics({ source, success, confidence, latency, error = 
 }
 
 /**
- * Track fallback usage (Textract -> Vision)
- */
-export function trackFallback() {
-  logger.metric('OCR.Fallback', 1, 'Count', { from: 'textract', to: 'vision' });
-  logger.info('OCR fallback triggered', { from: 'textract', to: 'vision' });
-}
-
-/**
  * Track overall OCR pipeline performance
  * @param {Object} result - Final extraction result
  * @param {number} totalLatency - Total processing time
