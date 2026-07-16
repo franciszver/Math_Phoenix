@@ -1,39 +1,35 @@
 /**
- * Test script for OpenAI Text API
- * Verifies API key and tests Socratic dialogue prompt
+ * Test script for OpenRouter OpenAI-compatible API
+ * Verifies API key and tests text completion via OpenRouter
  */
 
-import dotenv from 'dotenv';
-import OpenAI from 'openai';
+import '../src/config/env.js'; // Load environment variables first
+import { createChatCompletion, TEXT_MODEL, validateOpenAIConfig } from '../src/services/openai.js';
 
-dotenv.config();
+async function testOpenRouterAPI() {
+  console.log('🧪 Testing OpenRouter API...\n');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-async function testTextAPI() {
-  console.log('🧪 Testing OpenAI Text API...\n');
-
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('❌ OPENAI_API_KEY not found in environment variables');
-    console.log('💡 Make sure you have a .env file with OPENAI_API_KEY set');
+  try {
+    validateOpenAIConfig();
+  } catch (error) {
+    console.error('❌ OPENROUTER_API_KEY not found in environment variables');
+    console.log('💡 Make sure you have a .env file with OPENROUTER_API_KEY set');
     process.exit(1);
   }
 
   try {
     const testPrompt = `You are a patient math tutor. NEVER give direct answers. Guide through questions.
-    
+
 Student problem: "Solve 2x + 5 = 13"
 
 Give your first Socratic question to help the student discover the solution.`;
 
     console.log('📤 Sending test request...');
-    console.log('Prompt:', testPrompt);
+    console.log('Model:', TEXT_MODEL);
     console.log('');
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -48,7 +44,7 @@ Give your first Socratic question to help the student discover the solution.`;
       temperature: 0.7
     });
 
-    console.log('✅ OpenAI API connection successful!');
+    console.log('✅ OpenRouter API connection successful!');
     console.log('');
     console.log('📥 Response:');
     console.log(response.choices[0].message.content);
@@ -57,11 +53,13 @@ Give your first Socratic question to help the student discover the solution.`;
     console.log(`   Prompt tokens: ${response.usage.prompt_tokens}`);
     console.log(`   Completion tokens: ${response.usage.completion_tokens}`);
     console.log(`   Total tokens: ${response.usage.total_tokens}`);
+    console.log('');
+    console.log(`✨ Model used: ${response.model}`);
 
   } catch (error) {
-    console.error('❌ Error testing OpenAI API:');
+    console.error('❌ Error testing OpenRouter API:');
     if (error.status === 401) {
-      console.error('   Authentication failed. Check your API key.');
+      console.error('   Authentication failed. Check your OPENROUTER_API_KEY.');
     } else if (error.status === 429) {
       console.error('   Rate limit exceeded. Try again later.');
     } else {
@@ -71,5 +69,5 @@ Give your first Socratic question to help the student discover the solution.`;
   }
 }
 
-testTextAPI();
+testOpenRouterAPI();
 
