@@ -10,24 +10,113 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
+import { isDeepStrictEqual } from 'node:util';
 
 import { createPacer } from './lib/pacer.js';
 import { createReport } from './lib/report.js';
 import { loadCompleted } from './lib/resume.js';
 import { openai, TEXT_MODEL, __setChatCompletionOverride } from '../../src/services/openai.js';
-import { hasMathProblem } from '../../src/services/problemService.js';
+import { hasMathProblem, validateProblem, detectMultipleProblems } from '../../src/services/problemService.js';
+import { detectFormulaRequirement, evaluateFormulaKnowledge, detectSolutionCompletion } from '../../src/services/socraticEngine.js';
+import { gradeTransferAnswer } from '../../src/services/learningAssessmentService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
-const BEHAVIORS = {
+// Subset-match: a case passes if every key present in `expected` deep-equals
+// the corresponding key in `actual`. Extra fields on `actual` are ignored -
+// this lets service functions return richer objects (e.g. reasoning,
+// formulaName) without the eval dataset having to pin every field.
+export function subsetCompare(expected, actual) {
+  if (!actual) return false;
+  return Object.keys(expected).every((key) => isDeepStrictEqual(actual[key], expected[key]));
+}
+
+// Per-behavior minimum accuracy required for the run to be considered
+// passing. Exit code 1 = below threshold, exit code 2 stays reserved for
+// quota exhaustion (persistent 429).
+export const THRESHOLDS = {
+  hasMathProblem: 0.9,
+  validateProblem: 0.85,
+  detectMultipleProblems: 0.8,
+  detectFormulaRequirement: 0.8,
+  evaluateFormulaKnowledge: 0.8,
+  detectSolutionCompletion: 0.85,
+  gradeTransferAnswer: 0.8,
+};
+
+// Pure function (no process.exit) so threshold logic is unit-testable.
+// Returns per-behavior pass/fail against THRESHOLDS plus an overall exit code
+// (0 if every behavior meets its threshold, 1 otherwise).
+export function evaluateThresholds(behaviors, thresholds = THRESHOLDS) {
+  const results = {};
+  let exitCode = 0;
+  for (const [name, b] of Object.entries(behaviors)) {
+    const threshold = thresholds[name];
+    const pass = threshold === undefined ? true : b.accuracy >= threshold;
+    results[name] = { accuracy: b.accuracy, threshold, pass };
+    if (!pass) exitCode = 1;
+  }
+  return { results, exitCode };
+}
+
+export const BEHAVIORS = {
   hasMathProblem: {
     dataset: path.join(ROOT, 'datasets', 'classifiers', 'hasMathProblem.json'),
     invoke: async (input) => {
       const result = await hasMathProblem(input.text);
       return { hasMath: result.hasMath };
     },
-    compare: (expected, actual) => expected.hasMath === actual.hasMath,
+    compare: subsetCompare,
+  },
+  validateProblem: {
+    dataset: path.join(ROOT, 'datasets', 'classifiers', 'validateProblem.json'),
+    invoke: async (input) => {
+      const result = await validateProblem(input.text);
+      return { valid: result.valid };
+    },
+    compare: subsetCompare,
+  },
+  detectMultipleProblems: {
+    dataset: path.join(ROOT, 'datasets', 'classifiers', 'detectMultipleProblems.json'),
+    invoke: async (input) => {
+      const result = await detectMultipleProblems(input.text);
+      const problemCount = result.isMultiple ? result.problems.length : 1;
+      return { multiple: result.isMultiple, problemCount };
+    },
+    compare: subsetCompare,
+  },
+  detectFormulaRequirement: {
+    dataset: path.join(ROOT, 'datasets', 'classifiers', 'detectFormulaRequirement.json'),
+    invoke: async (input) => {
+      const result = await detectFormulaRequirement(input.problemText, input.category);
+      return { requiresFormula: result.requiresFormula };
+    },
+    compare: subsetCompare,
+  },
+  evaluateFormulaKnowledge: {
+    dataset: path.join(ROOT, 'datasets', 'classifiers', 'evaluateFormulaKnowledge.json'),
+    invoke: async (input) => {
+      const result = await evaluateFormulaKnowledge(input.studentResponse, input.expectedFormulaName, input.problemText);
+      return { knowsFormula: result.knowsFormula };
+    },
+    compare: subsetCompare,
+  },
+  detectSolutionCompletion: {
+    dataset: path.join(ROOT, 'datasets', 'classifiers', 'detectSolutionCompletion.json'),
+    invoke: async (input) => {
+      const result = await detectSolutionCompletion(input.studentResponse, input.problem, input.steps || []);
+      return { solution_completed: result.solution_completed, is_correct: result.is_correct };
+    },
+    compare: subsetCompare,
+  },
+  gradeTransferAnswer: {
+    dataset: path.join(ROOT, 'datasets', 'classifiers', 'gradeTransferAnswer.json'),
+    invoke: async (input) => {
+      const result = await gradeTransferAnswer(input.transferProblem, input.studentAnswer);
+      return { is_correct: result.is_correct };
+    },
+    compare: subsetCompare,
   },
 };
 
@@ -62,11 +151,24 @@ function parseArgs(argv) {
   return args;
 }
 
+// Datasets are authored concurrently and may not exist yet at runtime. A
+// missing file for a given behavior is a clean per-behavior skip (with a
+// warning), never a crash of the whole runner.
+function loadDataset(name) {
+  const { dataset } = BEHAVIORS[name];
+  if (!fs.existsSync(dataset)) {
+    console.warn(`Warning: dataset for behavior "${name}" not found at ${dataset} - skipping.`);
+    return null;
+  }
+  return JSON.parse(fs.readFileSync(dataset, 'utf8'));
+}
+
 function loadCases(args) {
   const behaviorNames = args.filter && BEHAVIORS[args.filter] ? [args.filter] : Object.keys(BEHAVIORS);
   let cases = [];
   for (const name of behaviorNames) {
-    const dataset = JSON.parse(fs.readFileSync(BEHAVIORS[name].dataset, 'utf8'));
+    const dataset = loadDataset(name);
+    if (!dataset) continue;
     for (const c of dataset) {
       cases.push({ behavior: name, ...c });
     }
@@ -232,6 +334,16 @@ async function main() {
     console.log(`Run complete: ${runDir}`);
     console.log(JSON.stringify(summary.behaviors, null, 2));
     console.log(`Pacer stats: ${JSON.stringify(pacer.stats())}`);
+
+    const thresholdEval = evaluateThresholds(summary.behaviors);
+    for (const [name, r] of Object.entries(thresholdEval.results)) {
+      const status = r.pass ? 'PASS' : 'FAIL';
+      console.log(`${status} ${name}: ${(r.accuracy * 100).toFixed(1)}% (threshold ${((r.threshold ?? 0) * 100).toFixed(1)}%)`);
+    }
+    // Exit code 2 (quota exhaustion) takes priority over threshold failures.
+    if (exitCode !== 2) {
+      exitCode = thresholdEval.exitCode;
+    }
   }
 
   process.exit(exitCode);
