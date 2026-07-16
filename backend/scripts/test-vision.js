@@ -1,83 +1,70 @@
 /**
- * Test script for OpenAI Vision API
+ * Test script for OpenRouter Vision API
  * Verifies API key and tests image analysis capability
- * 
- * Note: This script requires a sample image file
- * You can create a simple math problem image or use a URL
+ *
+ * Usage:
+ *   node scripts/test-vision.js                  - uses a built-in 1x1 PNG fallback image
+ *   node scripts/test-vision.js <path-to-image>  - uses a real image file
  */
 
-import dotenv from 'dotenv';
-import OpenAI from 'openai';
+import '../src/config/env.js'; // Load environment variables first
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createChatCompletion, VISION_MODEL, validateOpenAIConfig } from '../src/services/openai.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// Minimal valid 1x1 white pixel PNG, used when no real test image is available.
+const FALLBACK_IMAGE_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 async function testVisionAPI() {
-  console.log('🧪 Testing OpenAI Vision API...\n');
+  console.log('🧪 Testing OpenRouter Vision API...\n');
 
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('❌ OPENAI_API_KEY not found in environment variables');
-    console.log('💡 Make sure you have a .env file with OPENAI_API_KEY set');
+  try {
+    validateOpenAIConfig();
+  } catch (error) {
+    console.error('❌ OPENROUTER_API_KEY not found in environment variables');
+    console.log('💡 Make sure you have a .env file with OPENROUTER_API_KEY set');
     process.exit(1);
   }
 
-  // Try to find a test image, or use a base64 encoded simple example
-  const testImagePath = path.join(__dirname, 'test-image.png');
-  
-  let imageData;
-  let imageFormat = 'url';
+  const argImagePath = process.argv[2];
+  const testImagePath = argImagePath
+    ? path.resolve(argImagePath)
+    : path.join(__dirname, 'test-image.png');
 
+  let imageBase64;
   if (fs.existsSync(testImagePath)) {
-    console.log('📷 Using local test image:', testImagePath);
-    const imageBuffer = fs.readFileSync(testImagePath);
-    imageData = imageBuffer.toString('base64');
-    imageFormat = 'base64';
+    console.log('📷 Using image:', testImagePath);
+    imageBase64 = fs.readFileSync(testImagePath).toString('base64');
   } else {
-    console.log('📷 No local test image found. Using a sample math problem description.');
-    console.log('💡 To test with an actual image, place a test-image.png in the scripts folder.\n');
-    
-    // For testing, we'll use a text-based approach or create a simple test
-    console.log('⚠️  Vision API requires an actual image file.');
-    console.log('   Creating a simple test without image upload...\n');
-    
-    // We'll test the API structure but note that actual image is needed
-    console.log('💡 For full testing, you can:');
-    console.log('   1. Create a simple math problem image (e.g., "2x + 5 = 13")');
-    console.log('   2. Save it as test-image.png in the scripts folder');
-    console.log('   3. Run this script again\n');
-    
-    // Test with a URL-based approach (if you have a public image URL)
-    console.log('📝 Testing API structure with text description instead...');
-    return;
+    console.log('📷 No test image found. Using built-in 1x1 pixel PNG fallback.');
+    console.log('💡 To test with a real image, place test-image.png in the scripts folder');
+    console.log('   or pass a path: node scripts/test-vision.js <path-to-image>\n');
+    imageBase64 = FALLBACK_IMAGE_BASE64;
   }
 
   try {
-    console.log('📤 Sending test request to Vision API...\n');
+    console.log('📤 Sending test request to Vision API...');
+    console.log('Model:', VISION_MODEL);
+    console.log('');
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o', // Updated from deprecated 'gpt-4-vision-preview'
+    const response = await createChatCompletion({
+      model: VISION_MODEL,
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'What math problem is shown in this image? Extract the equation or problem statement.'
+              text: 'What math problem is shown in this image? Extract the equation or problem statement. If there is no math problem visible, say so.'
             },
             {
               type: 'image_url',
-              image_url: imageFormat === 'base64' 
-                ? { url: `data:image/png;base64,${imageData}` }
-                : { url: imageData }
+              image_url: { url: `data:image/png;base64,${imageBase64}` }
             }
           ]
         }
@@ -85,25 +72,24 @@ async function testVisionAPI() {
       max_tokens: 200
     });
 
-    console.log('✅ OpenAI Vision API connection successful!');
+    if (!response?.choices?.[0]) {
+      const upstreamMessage = response?.error?.message || 'No choices returned in response';
+      throw new Error(`Upstream error: ${upstreamMessage}`);
+    }
+
+    console.log('✅ PASS - OpenRouter Vision API round-trip succeeded');
     console.log('');
     console.log('📥 Response:');
     console.log(response.choices[0].message.content);
     console.log('');
-    console.log('📊 Usage:');
-    console.log(`   Prompt tokens: ${response.usage.prompt_tokens}`);
-    console.log(`   Completion tokens: ${response.usage.completion_tokens}`);
-    console.log(`   Total tokens: ${response.usage.total_tokens}`);
+    console.log(`✨ Model used: ${response.model || VISION_MODEL}`);
 
   } catch (error) {
-    console.error('❌ Error testing OpenAI Vision API:');
+    console.error('❌ FAIL - Error testing OpenRouter Vision API:');
     if (error.status === 401) {
-      console.error('   Authentication failed. Check your API key.');
+      console.error('   Authentication failed. Check your OPENROUTER_API_KEY.');
     } else if (error.status === 429) {
       console.error('   Rate limit exceeded. Try again later.');
-    } else if (error.message.includes('vision')) {
-      console.error('   Vision API may not be available with your API key tier.');
-      console.error('   Check your OpenAI account for Vision API access.');
     } else {
       console.error('   ', error.message);
     }
@@ -112,4 +98,3 @@ async function testVisionAPI() {
 }
 
 testVisionAPI();
-

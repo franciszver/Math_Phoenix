@@ -17,7 +17,6 @@ It also provides a **teacher dashboard** with aggregate and per‑session insigh
 **Deployment Options:**
 - 🎯 **Render** (Easiest) - One-click deployment with Blueprint
 - 🚀 **Railway + Vercel** - Great performance, easy setup
-- ☁️ **AWS** (Recommended for production) - Full control and scalability
 - 🐳 **Docker** - Self-hosting option
 
 ---
@@ -27,13 +26,9 @@ It also provides a **teacher dashboard** with aggregate and per‑session insigh
 ### Prerequisites
 - Node.js (>= 18.x recommended)
 - npm (comes with Node.js)
-- AWS account with:
-  - S3 bucket
-  - Textract enabled
-  - DynamoDB tables:
-    - `math-phoenix-sessions` (with TTL for 30‑day expiration)
-    - `math-phoenix-ml-data` (optional, for ML data collection)
-- OpenAI API key (with access to GPT + Vision endpoints)
+- OpenRouter API key (get one at https://openrouter.ai/keys)
+  - Enable data logging for free models in Settings → Privacy
+  - Purchase one-time $10 credit to unlock 1,000 req/day (optional for demo)
 
 ### Installation
 
@@ -58,17 +53,10 @@ It also provides a **teacher dashboard** with aggregate and per‑session insigh
    ```bash
    # Copy the example file and fill in your values
    cp .env.example .env
-   # Edit .env with your actual credentials
+   # Edit .env and add your OPENROUTER_API_KEY
    ```
 
-4. Set up AWS resources:
-   ```bash
-   # See infrastructure/README.md for setup instructions
-   cd infrastructure
-   # Follow the setup guide
-   ```
-
-5. Start development servers:
+4. Start development servers:
    ```bash
    # Terminal 1: Start backend
    cd backend
@@ -99,42 +87,6 @@ Math_Phoenix/
 - **Frontend**: Vite + React (runs on http://localhost:5173 by default)
 - **Backend**: Express (runs on http://localhost:3001 by default)
 
-### Generating Demo Data
-
-To populate the teacher dashboard with realistic demo data for presentations or testing:
-
-```bash
-cd backend
-npm run generate-demo-data
-```
-
-**Options:**
-- `--count=N` - Number of sessions to generate (default: 20)
-- `--clear` - Clear existing data before generating (optional)
-- `--days=N` - Number of days to spread sessions over (default: 7)
-
-**Examples:**
-```bash
-# Generate 20 sessions spread over 7 days (default)
-npm run generate-demo-data
-
-# Generate 30 sessions, clear existing data first
-npm run generate-demo-data -- --count=30 --clear
-
-# Generate 15 sessions spread over 14 days
-npm run generate-demo-data -- --count=15 --days=14
-```
-
-**What it generates:**
-- Multiple sessions with varied creation dates
-- 1-5 problems per session across all categories (arithmetic, algebra, geometry, word, multi-step)
-- Realistic conversation flows with 2-8 steps per problem
-- Proper hint usage tracking and streak meter data
-- Transcript entries for each conversation turn
-- Mix of completed and in-progress problems
-
-**Note:** Requires AWS credentials and DynamoDB table to be configured. The script uses the same AWS configuration as the main application.
-
 ## 📡 API Endpoints
 
 ### Sessions
@@ -156,7 +108,7 @@ npm run generate-demo-data -- --count=15 --days=14
 **Feature:** Automatic verification and correction of image-based math problems.
 
 **How it works:**
-- When a student uploads an image, the system extracts text using OCR (Textract → Vision fallback)
+- When a student uploads an image, the system extracts text using OCR via OpenRouter Vision API
 - The OCR confidence score is stored with the problem (0-1 scale)
 - For problems with low OCR confidence (< 0.8 or missing), the system automatically verifies the problem text against the image after every tutor response
 - If a mismatch is detected (e.g., "1+1" was read instead of "1+12"), the system:
@@ -193,54 +145,45 @@ npm run generate-demo-data -- --count=15 --days=14
 **Implementation:**
 - Enhanced logger outputs structured JSON in production mode
 - OCR/Vision performance metrics tracked:
-  - Success/failure rates by source (Textract vs Vision)
+  - Success/failure rates
   - Confidence scores
   - Latency (milliseconds)
-  - Fallback frequency
-- All metrics include dimensions (source, environment) for filtering
+- All metrics include dimensions (environment) for filtering
 
 **Metrics Tracked:**
 - `OCR.Attempt` - Total OCR attempts
 - `OCR.Success` / `OCR.Failure` - Success/failure counts
 - `OCR.Confidence` - Average confidence scores
 - `OCR.Latency` - Processing time
-- `OCR.Fallback` - Textract → Vision fallback events
 - `OCR.Pipeline.Success` - Overall pipeline success rate
 
-**Note:** CloudWatch integration requires AWS IAM permissions and CloudWatch Logs/Metrics configuration. Currently logs to console/CloudWatch Logs (structured JSON). Full CloudWatch Metrics integration can be added later.
+**Note:** Currently logs to console (structured JSON in production). Full metrics integration can be added during deployment to platforms like Render or AWS CloudWatch.
 
 ### ML Data Collection for Future Difficulty Classifier
 
-**Approach:** Real-time collection of structured training data in separate DynamoDB table.
+**Status:** Planned for Phase 6+ (persistent storage phase)
+
+**Approach:** Real-time collection of structured training data for ML classifier development.
 
 **Why:**
-- **Separate Storage**: ML data persisted independently from session data (different retention needs)
 - **Real-time Collection**: Capture data immediately when problems are submitted (accuracy)
 - **Teacher Feedback**: Teacher overrides are valuable training signals (mark as `teacher_override: true`)
 - **Feature Engineering**: Extract structured features (operation counts, complexity indicators) for ML training
 - **Non-blocking**: Collection happens asynchronously - doesn't impact user experience
 
-**Data Collected:**
+**Data to Collect:**
 - **Problem Features**: Text length, operation counts, variable counts, number features, complexity indicators
 - **Category Features**: One-hot encoded categories (arithmetic, algebra, geometry, word, multi-step)
 - **Student Performance**: Hints used, steps taken, completion status
-- **OCR Metadata**: Source, confidence, success status (for image problems)
+- **OCR Metadata**: Confidence, success status (for image problems)
 - **Teacher Corrections**: When teachers manually override tags (valuable training signal)
-
-**Storage:**
-- **Table**: `math-phoenix-ml-data` (separate from session table)
-- **Structure**: 
-  - `record_id`: Unique identifier
-  - `raw_data`: Original problem data (flexibility)
-  - `features`: Extracted feature vector (ML-ready)
-  - `metadata`: Collection metadata (teacher override, OCR info, timestamps)
 
 **Future Use:**
 - Train ML classifier to replace rule-based difficulty classification
 - Analyze patterns in teacher corrections to improve auto-tagging
 - Build confidence scores based on historical performance data
 
-**Note:** ML data table creation is handled via infrastructure scripts. Collection is non-critical (errors logged but don't fail requests).
+**Note:** Currently, data is stored in-memory and resets on restart (demo design). Persistent storage will be implemented in a later phase with database configuration.
 
 ## 👥 Teacher-Student Collaboration Feature
 
@@ -258,10 +201,10 @@ npm run generate-demo-data -- --count=15 --days=14
   - **Drawing canvas**: Shared whiteboard using Fabric.js with pen, shapes, and basic tools
   - **Teacher controls**: Can enable/disable student drawing permission
 - Student session is blocked until they join the collaboration
-- Collaboration sessions stored in DynamoDB with 30-day TTL
+- Collaboration sessions stored in-memory (resets on restart — demo design)
 
 **Problem Similarity Matching:**
-- Uses hybrid approach: OpenAI embeddings (`text-embedding-3-small`) + LLM generation
+- Uses hybrid approach: OpenRouter embeddings + LLM generation
 - Embeddings generated on-demand (lazy loading)
 - Similarity scores shown for database matches
 - LLM-generated problems labeled as "Generated"
@@ -271,7 +214,7 @@ npm run generate-demo-data -- --count=15 --days=14
 - **Drawing Technology**: HTML5 Canvas with Fabric.js (pen + basic shapes)
 - **Real-time Updates**: Polling (2-3 second intervals) - simpler than WebSocket for turn-taking
 - **Canvas Sync**: Debounced updates (1-2 seconds after drawing stops)
-- **Storage**: Same DynamoDB table with 30-day TTL
+- **Storage**: In-memory with session-based cleanup (resets on restart)
 - **Access**: Both teacher and student can access via `/collaboration/:collabSessionId` route
 
 **API Endpoints:**
@@ -304,14 +247,11 @@ See `_docs/` for detailed documentation:
 ## 🔐 Environment Variables
 
 Required environment variables (see `.env.example`):
-- `OPENAI_API_KEY` - OpenAI API key
-- `AWS_ACCESS_KEY_ID` - AWS access key (optional if using default profile)
-- `AWS_SECRET_ACCESS_KEY` - AWS secret key (optional if using default profile)
-- `AWS_REGION` - AWS region (e.g., us-east-1)
+- `OPENROUTER_API_KEY` - OpenRouter API key (get at https://openrouter.ai/keys)
+- `TEXT_MODEL` - Text generation model (optional, default: `openai/gpt-oss-20b:free`)
+- `VISION_MODEL` - Vision/image model (optional, default: `google/gemma-4-31b-it:free`)
+- `TEXT_MODEL_FALLBACK` - Fallback text model (optional, default: `meta-llama/llama-3.3-70b-instruct:free`)
+- `VISION_MODEL_FALLBACK` - Fallback vision model (optional, default: `nvidia/nemotron-nano-12b-v2-vl:free`)
 - `SESSION_SECRET` - Secret for session code generation
 - `DASHBOARD_PASSWORD` - Password for teacher dashboard
-- `S3_BUCKET_NAME` - S3 bucket name for image uploads
-- `DYNAMODB_TABLE_NAME` - DynamoDB table name for sessions (default: `math-phoenix-sessions`)
-- `DYNAMODB_ML_TABLE_NAME` - DynamoDB table name for ML data (optional, default: `math-phoenix-ml-data`)
-- `CLOUDFRONT_URL` - CloudFront distribution URL for frontend (optional, default: `https://d3rfhzm2ptw0c2.cloudfront.net`)
 
