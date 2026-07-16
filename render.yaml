@@ -17,24 +17,20 @@ services:
         value: production
       - key: PORT
         value: 3001
-      - key: OPENAI_API_KEY
+      - key: OPENROUTER_API_KEY
         sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
-      - key: AWS_REGION
-        value: us-east-1
+      - key: TEXT_MODEL
+        value: openai/gpt-oss-20b:free
+      - key: VISION_MODEL
+        value: google/gemma-4-31b-it:free
+      - key: TEXT_MODEL_FALLBACK
+        value: meta-llama/llama-3.3-70b-instruct:free
+      - key: VISION_MODEL_FALLBACK
+        value: nvidia/nemotron-nano-12b-v2-vl:free
       - key: SESSION_SECRET
         generateValue: true
       - key: DASHBOARD_PASSWORD
         sync: false
-      - key: S3_BUCKET_NAME
-        sync: false
-      - key: DYNAMODB_TABLE_NAME
-        value: math-phoenix-sessions
-      - key: DYNAMODB_ML_TABLE_NAME
-        value: math-phoenix-ml-data
       - key: FRONTEND_URL
         fromService:
           type: web

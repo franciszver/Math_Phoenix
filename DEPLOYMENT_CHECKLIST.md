@@ -4,20 +4,10 @@ Use this checklist to ensure a smooth deployment process.
 
 ## 📋 Pre-Deployment Checklist
 
-### AWS Resources
-- [ ] S3 bucket created for image uploads
-- [ ] S3 bucket CORS configured to allow your frontend domain
-- [ ] DynamoDB table `math-phoenix-sessions` created
-- [ ] DynamoDB table `math-phoenix-ml-data` created (optional)
-- [ ] DynamoDB TTL enabled on `math-phoenix-sessions` (30 days)
-- [ ] IAM user/role created with appropriate permissions
-- [ ] AWS credentials configured (access key + secret key)
-
 ### API Keys & Secrets
-- [ ] OpenAI API key obtained
-- [ ] OpenAI API key has access to GPT-4
-- [ ] OpenAI API key has access to Vision API
-- [ ] OpenAI account has sufficient credits
+- [ ] OpenRouter API key obtained (https://openrouter.ai/keys)
+- [ ] Data logging enabled in OpenRouter Settings → Privacy
+- [ ] OpenRouter account has free tier or $10 credit activated
 - [ ] Strong `SESSION_SECRET` generated (min 32 characters)
 - [ ] Strong `DASHBOARD_PASSWORD` chosen
 
@@ -34,11 +24,14 @@ Use this checklist to ensure a smooth deployment process.
 
 ### Choose Your Deployment Option
 
-#### Option 1: Render (Easiest)
+#### Option 1: Render (Recommended)
 - [ ] Render account created
 - [ ] Repository connected to Render
 - [ ] Blueprint deployed from `render.yaml`
-- [ ] Environment variables added in Render dashboard
+- [ ] Environment variables added in Render dashboard:
+  - [ ] `OPENROUTER_API_KEY`
+  - [ ] `DASHBOARD_PASSWORD`
+  - [ ] (Optional: model environment variables)
 - [ ] Backend service deployed successfully
 - [ ] Frontend service deployed successfully
 - [ ] Health check passing (`/health` endpoint)
@@ -46,26 +39,18 @@ Use this checklist to ensure a smooth deployment process.
 #### Option 2: Railway + Vercel
 - [ ] Railway account created
 - [ ] Railway CLI installed
-- [ ] Backend deployed to Railway
-- [ ] Environment variables added in Railway
+- [ ] Backend deployed to Railway with environment variables
 - [ ] Railway backend URL noted
 - [ ] Vercel account created
 - [ ] Vercel CLI installed
 - [ ] Frontend deployed to Vercel
 - [ ] `VITE_API_URL` set in Vercel to Railway backend URL
 
-#### Option 3: AWS (Full Control)
-- [ ] AWS EB CLI installed
-- [ ] Elastic Beanstalk application created
-- [ ] Elastic Beanstalk environment created
-- [ ] Environment variables set in EB
-- [ ] Backend deployed to EB
-- [ ] EB backend URL noted
-- [ ] S3 bucket created for frontend
-- [ ] Frontend built with correct `VITE_API_URL`
-- [ ] Frontend uploaded to S3
-- [ ] CloudFront distribution created (optional)
-- [ ] CloudFront URL noted
+#### Option 3: Docker (Self-Hosted)
+- [ ] Docker and Docker Compose installed on server
+- [ ] `.env` file created with OpenRouter credentials
+- [ ] docker-compose up deployed successfully
+- [ ] Reverse proxy (nginx/Caddy) configured for HTTPS
 
 ## ✅ Post-Deployment Verification
 
@@ -114,8 +99,7 @@ Use this checklist to ensure a smooth deployment process.
 - [ ] HTTPS enabled for frontend
 - [ ] HTTPS enabled for backend
 - [ ] CORS configured to allow only your frontend domain
-- [ ] S3 bucket not publicly accessible (except via signed URLs)
-- [ ] DynamoDB tables not publicly accessible
+- [ ] Backend API requires authentication for protected endpoints
 
 ### Application Security
 - [ ] Rate limiting considered (see Phase 3 in tasks.md)
@@ -177,20 +161,14 @@ Use this checklist to ensure a smooth deployment process.
 
 ## 💰 Cost Management
 
-### AWS Costs
-- [ ] DynamoDB on-demand pricing understood
-- [ ] S3 storage costs estimated
-- [ ] Textract usage costs estimated
-- [ ] CloudWatch costs considered
-- [ ] AWS billing alerts configured
-
-### OpenAI Costs
-- [ ] Usage limits set in OpenAI dashboard
-- [ ] Billing alerts configured
-- [ ] Cost per session estimated
+### OpenRouter Costs
+- [ ] Free tier understood (50 requests/day)
+- [ ] $10 one-time credit unlocks 1,000 requests/day
+- [ ] Cost per session estimated (free models have zero cost)
+- [ ] Usage limits understood
 
 ### Hosting Costs
-- [ ] Monthly hosting costs calculated
+- [ ] Monthly hosting costs calculated (Render: $0-7/month)
 - [ ] Budget allocated
 - [ ] Cost monitoring configured
 

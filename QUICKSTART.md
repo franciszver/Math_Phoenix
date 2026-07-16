@@ -12,8 +12,8 @@ This guide will help you deploy Math Phoenix in **under 30 minutes** using the e
 
 1. **Fork or clone** this repository to your GitHub account
 2. Make sure you have:
-   - OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
-   - AWS account with S3 and DynamoDB set up (see [SETUP.md](SETUP.md))
+   - OpenRouter API key ([Get one here](https://openrouter.ai/keys))
+   - Enable data logging for free models in Settings → Privacy
 
 ### Step 2: Deploy to Render
 
@@ -28,11 +28,9 @@ This guide will help you deploy Math Phoenix in **under 30 minutes** using the e
    - Frontend Static Site
 
 5. **Add your environment variables**:
-   - `OPENAI_API_KEY` - Your OpenAI API key
-   - `AWS_ACCESS_KEY_ID` - Your AWS access key
-   - `AWS_SECRET_ACCESS_KEY` - Your AWS secret key
-   - `S3_BUCKET_NAME` - Your S3 bucket name
+   - `OPENROUTER_API_KEY` - Your OpenRouter API key
    - `DASHBOARD_PASSWORD` - Choose a secure password
+   - (Optional: `TEXT_MODEL`, `VISION_MODEL`, and fallback models)
 
 6. **Click "Apply"** and wait for deployment (~5-10 minutes)
 
@@ -71,15 +69,10 @@ This guide will help you deploy Math Phoenix in **under 30 minutes** using the e
    ```
 
 3. **Add environment variables** in Railway dashboard:
-   - `OPENAI_API_KEY`
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_REGION`
-   - `SESSION_SECRET`
-   - `DASHBOARD_PASSWORD`
-   - `S3_BUCKET_NAME`
-   - `DYNAMODB_TABLE_NAME`
-   - `DYNAMODB_ML_TABLE_NAME`
+   - `OPENROUTER_API_KEY` - Your OpenRouter API key
+   - `SESSION_SECRET` - Random secret (min 32 chars)
+   - `DASHBOARD_PASSWORD` - Secure password
+   - (Optional: `TEXT_MODEL`, `VISION_MODEL`, fallback models)
 
 4. **Get your backend URL**:
    ```bash
@@ -155,7 +148,7 @@ This guide will help you deploy Math Phoenix in **under 30 minutes** using the e
 - [ ] Test submitting an image problem
 - [ ] Test the chat functionality
 - [ ] Access teacher dashboard with your password
-- [ ] Verify AWS resources are being used (check S3 and DynamoDB)
+- [ ] Test the health endpoint (`/health`)
 - [ ] Set up monitoring (optional but recommended)
 - [ ] Configure custom domain (optional)
 
@@ -168,20 +161,10 @@ This guide will help you deploy Math Phoenix in **under 30 minutes** using the e
 - **Backend**: Verify backend is running and accessible
 - **CORS**: Ensure backend allows your frontend domain
 
-### "OpenAI API error"
-- Verify your API key is valid
-- Check you have sufficient credits
-- Ensure you have access to GPT-4 and Vision API
-
-### "AWS error"
-- Verify AWS credentials are correct
-- Check S3 bucket and DynamoDB tables exist
-- Ensure IAM permissions are set correctly
-
-### "Image upload failing"
-- Check S3 bucket permissions
-- Verify AWS credentials have S3 write access
-- Check CORS configuration on S3 bucket
+### "OpenRouter API error"
+- Verify your API key is valid at https://openrouter.ai/keys
+- Check you have enabled data logging for free models
+- Ensure you have remaining free requests (50/day free, 1,000/day with $10 credit)
 
 ---
 
@@ -213,11 +196,10 @@ curl https://your-backend-url/health
 ## 💡 Tips for Success
 
 - **Start with free tiers** to test before committing to paid plans
-- **Monitor costs** especially for AWS services (S3, DynamoDB, OpenAI API)
+- **Monitor OpenRouter usage** - free tier has 50 req/day limit
 - **Set up error tracking** (Sentry, LogRocket) for production
 - **Use environment-specific configs** (dev, staging, prod)
 - **Keep secrets secure** - never commit `.env` files
-- **Regular backups** of DynamoDB data
 
 ---
 

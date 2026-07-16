@@ -6,8 +6,9 @@ This guide will help you set up the Math Phoenix development environment.
 
 - **Node.js** (>= 18.x) - [Download](https://nodejs.org/)
 - **npm** (comes with Node.js)
-- **AWS Account** with appropriate permissions
-- **OpenAI API Key** with access to GPT-4 and Vision API
+- **OpenRouter API Key** - [Get one at https://openrouter.ai/keys](https://openrouter.ai/keys)
+  - Enable data logging for free models in Settings → Privacy
+  - Purchase one-time $10 credit to unlock 1,000 req/day (optional for demo)
 
 ## Step 1: Install Dependencies
 
@@ -31,45 +32,14 @@ npm install
    ```
 
 2. Edit `.env` and fill in your values:
-   - `OPENAI_API_KEY` - Your OpenAI API key
-   - `AWS_ACCESS_KEY_ID` - Your AWS access key (optional if using IAM roles)
-   - `AWS_SECRET_ACCESS_KEY` - Your AWS secret key (optional if using IAM roles)
-   - `AWS_REGION` - AWS region (default: us-east-1)
+   - `OPENROUTER_API_KEY` - Your OpenRouter API key
    - `SESSION_SECRET` - Random secret for session code generation (min 32 chars)
    - `DASHBOARD_PASSWORD` - Password for teacher dashboard
-   - `S3_BUCKET_NAME` - Will be set after AWS setup
-   - `DYNAMODB_TABLE_NAME` - Will be set after AWS setup
+   - Optional: `TEXT_MODEL`, `VISION_MODEL`, `TEXT_MODEL_FALLBACK`, `VISION_MODEL_FALLBACK` (defaults set in backend/src/services/openai.js)
 
-## Step 3: Set Up AWS Resources
+## Step 3: Verify Setup
 
-You have three options:
-
-### Option A: PowerShell Script (Windows)
-```powershell
-cd infrastructure
-.\setup-aws.ps1
-```
-
-### Option B: Bash Script (Linux/Mac)
-```bash
-cd infrastructure
-chmod +x setup-aws.sh
-./setup-aws.sh
-```
-
-### Option C: Terraform
-```bash
-cd infrastructure/terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-After setup, update your `.env` file with the bucket and table names.
-
-## Step 4: Verify Setup
-
-### Test OpenAI API
+### Test OpenRouter API
 ```bash
 cd backend
 npm run test:openai
@@ -92,7 +62,7 @@ For full verification including API connection test:
 npm run verify:api
 ```
 
-## Step 5: Start Development Servers
+## Step 4: Start Development Servers
 
 ### Terminal 1: Backend
 ```bash
@@ -112,15 +82,10 @@ The frontend will run on `http://localhost:5173`
 
 ## Troubleshooting
 
-### OpenAI API Errors
-- Verify your API key is correct
-- Check that you have access to GPT-4 and Vision API
-- Ensure you have sufficient credits
-
-### AWS Errors
-- Verify AWS credentials are configured (`aws configure`)
-- Check IAM permissions for S3, DynamoDB, Textract
-- Ensure region is correct in `.env`
+### OpenRouter API Errors
+- Verify your API key is correct and valid at https://openrouter.ai/keys
+- Ensure you have enabled data logging for free models in Settings → Privacy
+- Check that you have sufficient free requests remaining (50/day free, 1,000/day after $10 credit)
 
 ### Port Already in Use
 - Change `PORT` in `.env` for backend
