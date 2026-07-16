@@ -11,13 +11,12 @@ import {
   evaluateMCAnswer,
   generateTransferProblem,
   calculateLearningConfidence,
-  getAdaptiveRecommendation
+  getAdaptiveRecommendation,
+  gradeTransferAnswer
 } from '../services/learningAssessmentService.js';
-import { createChatCompletion, TEXT_MODEL } from '../services/openai.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 import { validateSessionCode } from '../utils/sessionCode.js';
-import { parseLLMJson } from '../utils/parseLLMJson.js';
 
 const logger = createLogger();
 
@@ -372,35 +371,7 @@ async function handleTransferAnswer(sessionCode, problem, studentAnswer, res, ne
 
     // Use LLM to verify if transfer answer is correct
     const transferProblem = problem.learning_assessment.transfer_problem;
-    const prompt = `The student was asked to solve this transfer problem using the same approach as the original problem.
-
-Transfer problem: ${transferProblem.problem_text}
-Student's answer: "${studentAnswer}"
-
-Determine if the student's answer is correct. Respond with ONLY a JSON object:
-{
-  "is_correct": true or false,
-  "reasoning": "brief explanation"
-}`;
-
-    const response = await createChatCompletion({
-      model: TEXT_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert at verifying math answers. Respond with valid JSON only.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      max_tokens: 300,
-      temperature: 0.3
-    });
-
-    const content = response.choices[0]?.message?.content?.trim() || '{}';
-    const result = parseLLMJson(content);
+    const result = await gradeTransferAnswer(transferProblem, studentAnswer);
 
     const transferSuccess = result.is_correct || false;
 

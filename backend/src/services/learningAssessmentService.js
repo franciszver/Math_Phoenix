@@ -259,6 +259,44 @@ Respond with ONLY the problem text, nothing else.`;
 }
 
 /**
+ * Grade a student's transfer problem answer using the LLM
+ * @param {Object} transferProblem - Transfer problem object (has problem_text)
+ * @param {string} studentAnswer - Student's answer to the transfer problem
+ * @returns {Promise<Object>} Parsed grading result, e.g. { is_correct, reasoning }
+ */
+export async function gradeTransferAnswer(transferProblem, studentAnswer) {
+  const prompt = `The student was asked to solve this transfer problem using the same approach as the original problem.
+
+Transfer problem: ${transferProblem.problem_text}
+Student's answer: "${studentAnswer}"
+
+Determine if the student's answer is correct. Respond with ONLY a JSON object:
+{
+  "is_correct": true or false,
+  "reasoning": "brief explanation"
+}`;
+
+  const response = await createChatCompletion({
+    model: TEXT_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an expert at verifying math answers. Respond with valid JSON only.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    max_tokens: 300,
+    temperature: 0.3
+  });
+
+  const content = response.choices[0]?.message?.content?.trim() || '{}';
+  return parseLLMJson(content);
+}
+
+/**
  * Calculate learning confidence score
  * @param {number} mcScore - MC quiz score (0-1)
  * @param {boolean|null} transferSuccess - Transfer problem success (true/false/null)
