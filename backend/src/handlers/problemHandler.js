@@ -4,7 +4,7 @@
  */
 
 import { createSession, getSession, addProblemToSession, addToTranscript, updateSession } from '../services/sessionService.js';
-import { uploadImageToS3, extractTextFromImage, detectMultipleProblems, detectAndExtractWordProblem } from '../services/imageService.js';
+import { extractTextFromImage, detectMultipleProblems, detectAndExtractWordProblem } from '../services/imageService.js';
 import { processProblem, detectMultipleProblems as detectMultipleProblemsText, hasMathProblem, validateMultipleProblems, validateProblem } from '../services/problemService.js';
 import { generateInitialPrompt } from '../services/socraticEngine.js';
 import { collectMLData } from '../services/mlDataService.js';
@@ -64,11 +64,6 @@ export async function submitProblemHandler(req, res, next) {
     let ocrResult = null;
     if (imageFile) {
       try {
-        // Upload to S3 (always store for debugging)
-        const uploadResult = await uploadImageToS3(imageFile.buffer, imageFile.originalname);
-        imageUrl = uploadResult.url;
-        imageKey = uploadResult.key;
-
         // Extract text from image
         ocrResult = await extractTextFromImage(imageFile.buffer);
 
@@ -330,11 +325,7 @@ export async function selectProblemHandler(req, res, next) {
 
     // Add image info if available
     if (imageKey) {
-      // Reconstruct image URL from key
-      const region = process.env.AWS_REGION || 'us-east-1';
-      const bucketName = process.env.S3_BUCKET_NAME || 'math-phoenix-uploads-20250103';
-      const imageUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${imageKey}`;
-      processedProblem.image_url = imageUrl;
+      processedProblem.image_url = null;
       processedProblem.image_key = imageKey;
     }
 
