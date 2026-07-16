@@ -8,23 +8,12 @@
     "test": "node --test tests/*.test.js",
     "test:openai": "node scripts/test-openai.js",
     "test:vision": "node scripts/test-vision.js",
-    "verify": "node scripts/verify-setup.js",
-    "verify:api": "node scripts/verify-setup.js --test-api",
-    "test:api": "node scripts/test-api.js",
-    "generate-demo-data": "node scripts/generate-demo-data.js",
-    "setup:dynamodb": "node scripts/setup-dynamodb.js",
-    "setup:aws": "node scripts/setup-aws.js",
-    "deploy:railway": "railway up",
-    "deploy:eb": "eb deploy"
+    "test:api": "node scripts/test-api.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.490.0",
-    "@aws-sdk/client-s3": "^3.490.0",
-    "@aws-sdk/client-textract": "^3.490.0",
-    "@aws-sdk/lib-dynamodb": "^3.490.0",
     "axios": "^1.13.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
