@@ -16,16 +16,28 @@ const logger = createLogger();
 // of recognized function names (sin/cos/tan/log/sqrt) - anything else falls
 // through to the LLM check.
 const ALLOWED_CHARS_REGEX = /^[0-9a-zA-Z%√+\-*/^=<>().,\s]+$/;
-const DISALLOWED_WORD_REGEX = /\b(?!(?:sin|cos|tan|log|sqrt)\b)[a-zA-Z]{2,}\b/i;
+const ALLOWED_FUNCTION_NAMES = new Set(['sin', 'cos', 'tan', 'log', 'sqrt']);
+const HAS_DIGIT_REGEX = /\d/;
+const HAS_OPERATOR_REGEX = /[+\-*/^=<>%]/;
 
 /**
  * Determine whether text is a bare math expression/equation (e.g. "1+2",
  * "3x - 4 = 11") with no prose, so it can bypass the LLM validity check.
+ *
+ * Requires: only allowed characters, no letter run of 2+ chars other than a
+ * recognized function name (checked without `\b`, since `\b` never fires
+ * between adjacent digits and letters and would otherwise let words like
+ * "1shit2" slip through undetected), and at least one digit plus one
+ * operator so degenerate strings like "+++" or "111111" don't fast-path.
  * @param {string} text - Trimmed problem text
  * @returns {boolean}
  */
 function isBareMathExpression(text) {
-  return ALLOWED_CHARS_REGEX.test(text) && !DISALLOWED_WORD_REGEX.test(text);
+  if (!ALLOWED_CHARS_REGEX.test(text)) return false;
+  if (!HAS_DIGIT_REGEX.test(text) || !HAS_OPERATOR_REGEX.test(text)) return false;
+
+  const letterRuns = text.match(/[a-zA-Z]{2,}/g) || [];
+  return letterRuns.every(run => ALLOWED_FUNCTION_NAMES.has(run.toLowerCase()));
 }
 
 /**
