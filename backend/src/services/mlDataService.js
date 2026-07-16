@@ -5,7 +5,6 @@
 
 import '../config/env.js';
 import { createLogger } from '../utils/logger.js';
-import { AWSError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
 
