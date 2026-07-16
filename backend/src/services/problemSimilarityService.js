@@ -23,7 +23,7 @@ export async function generateProblemEmbedding(problemText) {
 
   try {
     const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: 'openai/text-embedding-3-small', // OpenRouter requires provider-prefixed model IDs
       input: problemText.trim()
     });
 
