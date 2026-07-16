@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 
 import { createPacer } from './lib/pacer.js';
@@ -102,53 +102,53 @@ function getGitCommit() {
   }
 }
 
-async function runCase(behaviorDef, testCase, pacer) {
-  const samples = [];
+export async function runCase(behaviorDef, testCase, pacer) {
   let lastActual = null;
   let lastError = null;
   let calls = 0;
+  let pass = false;
   const start = Date.now();
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // At most one attempt, plus one backoff-retry if the first attempt hits a
+  // persistent 429 (survived createChatCompletion's own fallback). A wrong
+  // (non-erroring) answer ends the case immediately - it is NOT retried.
+  // Retrying on mismatch would let failing cases "re-roll" for a lucky flip
+  // while first-try passes never get re-rolled, biasing accuracy upward and
+  // contradicting the pass = first-attempt-success contract below.
+  for (let attempt = 0; attempt < 2; attempt++) {
     calls += 1;
     try {
       const actual = await behaviorDef.invoke(testCase.input);
       lastActual = actual;
-      const ok = behaviorDef.compare(testCase.expected, actual);
-      samples.push(ok);
-      if (ok) break;
+      pass = behaviorDef.compare(testCase.expected, actual);
+      lastError = null;
+      break;
     } catch (error) {
       const status = error?.status ?? error?.response?.status;
-      if (status === 429) {
+      if (status === 429 && attempt === 0) {
         // Persistent 429 that survived the createChatCompletion fallback:
-        // back off once, then give up on this case (caller decides run fate).
+        // back off once, then retry this case exactly once more.
         await new Promise((resolve) => setTimeout(resolve, 60000));
-        try {
-          calls += 1;
-          const actual = await behaviorDef.invoke(testCase.input);
-          lastActual = actual;
-          const ok = behaviorDef.compare(testCase.expected, actual);
-          samples.push(ok);
-          if (ok) break;
-          continue;
-        } catch (retryError) {
-          throw retryError;
-        }
+        continue;
+      }
+      if (status === 429) {
+        // Second consecutive 429 after the backoff retry: give up on this
+        // case and let the caller (main) decide the run's fate.
+        throw error;
       }
       lastError = error.message || String(error);
-      samples.push(false);
+      pass = false;
       break;
     }
   }
 
-  const pass = samples[0] === true;
   const ms = Date.now() - start;
 
   return {
     behavior: testCase.behavior,
     id: testCase.id,
     pass,
-    samples,
+    samples: [pass],
     expected: testCase.expected,
     actual: lastActual,
     error: lastError,
@@ -162,7 +162,7 @@ async function main() {
   const cases = loadCases(args);
 
   const models = [TEXT_MODEL];
-  console.log(`Projected call count: ${cases.length} case(s) (up to ${cases.length * 3} LLM calls with retries)`);
+  console.log(`Projected call count: ${cases.length} case(s) (up to ${cases.length * 2} LLM calls with retries)`);
   console.log(`Model(s): ${models.join(', ')}`);
   console.log(`RPM: ${args.rpm}`);
 
@@ -172,7 +172,7 @@ async function main() {
   }
 
   if (!args.yes) {
-    const confirmed = await promptYesNo(`Proceed with up to ${cases.length * 3} live LLM calls? (y/N) `);
+    const confirmed = await promptYesNo(`Proceed with up to ${cases.length * 2} live LLM calls? (y/N) `);
     if (!confirmed) {
       console.log('Aborted.');
       process.exit(1);
@@ -237,7 +237,11 @@ async function main() {
   process.exit(exitCode);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Only run the CLI when this file is executed directly (e.g. `node
+// run-classifiers.js`), not when imported by tests for its exported helpers.
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
