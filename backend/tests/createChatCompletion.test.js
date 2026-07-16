@@ -215,3 +215,39 @@ test('normal response with finish_reason stop passes through untouched', async (
   assert.equal(calls.length, 1);
   assert.equal(result.choices[0].message.content, 'all good');
 });
+
+test('empty content with finish_reason stop still triggers retry with fallback model', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return { model: params.model, choices: [{ message: { content: '' }, finish_reason: 'stop' }] };
+    }
+    return { model: params.model, choices: [{ message: { content: 'fallback ok' } }] };
+  });
+
+  const result = await createChatCompletion({ model: TEXT_MODEL, messages: [] });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].model, TEXT_MODEL_FALLBACK);
+  assert.equal(result.model, TEXT_MODEL_FALLBACK);
+});
+
+test('429 on first call followed by an empty-shaped fallback response throws OpenAIError, not a raw empty response, and makes only 2 calls', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      const err = new Error('rate limited');
+      err.status = 429;
+      throw err;
+    }
+    return { model: params.model, choices: [{ message: { content: null }, finish_reason: 'length' }] };
+  });
+
+  await assert.rejects(
+    () => createChatCompletion({ model: TEXT_MODEL, messages: [] }),
+    /Empty completion from model/
+  );
+  assert.equal(calls.length, 2);
+});

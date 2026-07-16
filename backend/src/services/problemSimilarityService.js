@@ -100,8 +100,9 @@ function timeoutPromise(ms) {
 }
 
 /**
- * Get similar problem options via LLM generation with a 5-second timeout
- * Returns the best results available within 5 seconds
+ * Get similar problem options via LLM generation with a timeout (TIMEOUT_MS,
+ * default 30s, overridable via SIMILARITY_TIMEOUT_MS)
+ * Returns the best results available within that timeout
  * @param {Object} originalProblem - Original problem object
  * @returns {Promise<Array>} Array of up to 3 similar problem options
  */
