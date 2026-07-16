@@ -23,7 +23,11 @@ function getOpenAIClient() {
     }
     _openaiClient = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY
+      apiKey: process.env.OPENROUTER_API_KEY,
+      // Fail fast: createChatCompletion does its own single fallback-model
+      // retry; the SDK's default internal retries (2x with backoff) stack
+      // with it and balloon worst-case latency on free-tier 429s.
+      maxRetries: 0
     });
   }
   return _openaiClient;
