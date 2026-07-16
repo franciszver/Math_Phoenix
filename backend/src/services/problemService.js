@@ -10,6 +10,24 @@ import { OpenAIError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
 
+// Only digits, single-letter variables, math operators/punctuation, whitespace,
+// and a handful of common math symbols (%, √). Deliberately conservative:
+// any run of 2+ letters disqualifies the text UNLESS it's one of a small set
+// of recognized function names (sin/cos/tan/log/sqrt) - anything else falls
+// through to the LLM check.
+const ALLOWED_CHARS_REGEX = /^[0-9a-zA-Z%√+\-*/^=<>().,\s]+$/;
+const DISALLOWED_WORD_REGEX = /\b(?!(?:sin|cos|tan|log|sqrt)\b)[a-zA-Z]{2,}\b/i;
+
+/**
+ * Determine whether text is a bare math expression/equation (e.g. "1+2",
+ * "3x - 4 = 11") with no prose, so it can bypass the LLM validity check.
+ * @param {string} text - Trimmed problem text
+ * @returns {boolean}
+ */
+function isBareMathExpression(text) {
+  return ALLOWED_CHARS_REGEX.test(text) && !DISALLOWED_WORD_REGEX.test(text);
+}
+
 /**
  * Normalize math problem to LaTeX using LLM
  * @param {string} rawText - Raw text from OCR or user input
@@ -298,8 +316,15 @@ export async function validateProblem(text) {
     return { valid: false, reason: 'Problem text is empty' };
   }
 
+  // Deterministic fast-path: a bare math expression/equation (e.g. "1+2",
+  // "3x - 4 = 11") is a valid problem even without a posed question, so skip
+  // the LLM entirely to avoid nondeterministic false negatives.
+  if (isBareMathExpression(text.trim())) {
+    return { valid: true, reason: null };
+  }
+
   try {
-    const prompt = `Is this a valid, complete math problem? Respond with "VALID" or "INVALID" followed by a brief reason.
+    const prompt = `Is this a valid, complete math problem? Respond with "VALID" or "INVALID" followed by a brief reason. Note: a bare math expression or equation without an explicit question (e.g. "1+2" or "3x - 4 = 11") is a valid problem - interpret it as an instruction to evaluate or solve it.
 
 Problem: "${text}"`;
 
@@ -308,7 +333,7 @@ Problem: "${text}"`;
       messages: [
         {
           role: 'system',
-          content: 'You are a math problem validator. Determine if text is a valid, complete, solvable math problem.'
+          content: 'You are a math problem validator. Determine if text is a valid, complete, solvable math problem. Bare math expressions or equations without an explicit question are valid problems (interpret as "evaluate/solve this").'
         },
         {
           role: 'user',

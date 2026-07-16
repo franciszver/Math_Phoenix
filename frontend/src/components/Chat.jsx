@@ -190,12 +190,13 @@ export function Chat({
       // Remove the student message that was added (since submission failed)
       setMessages(prev => prev.slice(0, -1));
       
-      const errorData = error.response?.data?.error || {};
-      const errorMessage = errorData.message || error.message || 'Failed to submit problem';
-      // Backend returns error code directly as error property, or nested in error.code
-      const errorCode = typeof error.response?.data?.error === 'string' 
-        ? error.response.data.error 
-        : errorData.code;
+      const rawError = error.response?.data?.error;
+      const errorData = (rawError && typeof rawError === 'object') ? rawError : {};
+      // Backend returns error code directly as error property (with the message
+      // as a sibling field), or nested in error.{message, code}
+      const errorMessage = (typeof rawError === 'string' ? error.response?.data?.message : errorData.message)
+        || error.message || 'Failed to submit problem';
+      const errorCode = typeof rawError === 'string' ? rawError : errorData.code;
       
       // Check if it's the "already active problem" error
       if (errorMessage.includes('already active') || errorMessage.includes('Complete it before')) {
@@ -279,7 +280,9 @@ export function Chat({
       setMultipleProblems(null);
     } catch (error) {
       console.error('Error selecting problem:', error);
-      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to select problem';
+      const rawError = error.response?.data?.error;
+      const errorMessage = (typeof rawError === 'string' ? error.response?.data?.message : rawError?.message)
+        || error.message || 'Failed to select problem';
       onError?.(errorMessage);
       setCanSubmitProblem(true);
     } finally {
