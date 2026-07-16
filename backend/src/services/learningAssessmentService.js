@@ -7,6 +7,7 @@ import '../config/env.js';
 import { openai } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';
+import { parseLLMJson } from '../utils/parseLLMJson.js';
 
 const logger = createLogger();
 
@@ -132,8 +133,7 @@ Respond with ONLY a JSON array with 2-3 questions in this exact format:
     });
 
     const content = response.choices[0]?.message?.content?.trim() || '[]';
-    const cleanedContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    const questions = JSON.parse(cleanedContent);
+    const questions = parseLLMJson(content);
 
     // Validate and ensure we have at least 2 questions (prefer 3)
     let validatedQuestions = questions

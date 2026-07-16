@@ -19,6 +19,7 @@ import { openai } from '../services/openai.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 import { validateSessionCode } from '../utils/sessionCode.js';
+import { parseLLMJson } from '../utils/parseLLMJson.js';
 
 const logger = createLogger();
 
@@ -486,8 +487,7 @@ Determine if the student's answer is correct. Respond with ONLY a JSON object:
     });
 
     const content = response.choices[0]?.message?.content?.trim() || '{}';
-    const cleanedContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    const result = JSON.parse(cleanedContent);
+    const result = parseLLMJson(content);
 
     const transferSuccess = result.is_correct || false;
 

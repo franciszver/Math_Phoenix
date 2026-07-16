@@ -32,6 +32,9 @@ samconfig.toml
 coverage/
 .nyc_output/
 
+# Local planning docs (not committed)
+_docs/plans/
+
 # Temporary files
 *.tmp
 *.temp
