@@ -4,13 +4,10 @@
  */
 
 import '../config/env.js';
-import { dynamoDocClient } from './aws.js';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { createLogger } from '../utils/logger.js';
 import { AWSError } from '../utils/errorHandler.js';
 
 const logger = createLogger();
-const ML_DATA_TABLE = process.env.DYNAMODB_ML_TABLE_NAME || 'math-phoenix-ml-data';
 
 /**
  * Extract feature vector from problem for ML training
@@ -96,98 +93,56 @@ function extractFeatures(problem, session) {
  * @param {boolean} teacherOverride - Whether teacher manually corrected tags
  */
 export async function collectMLData(problem, session, ocrResult = null, teacherOverride = false) {
-  try {
-    // Extract features
-    const features = extractFeatures(problem, session);
-    
-    // Add OCR metadata if available
-    if (ocrResult) {
-      features.ocr_source = ocrResult.source;
-      features.ocr_confidence = ocrResult.confidence;
-      features.ocr_success = ocrResult.success;
-    }
-    
-    // Mark teacher override
-    if (teacherOverride) {
-      features.teacher_override = true;
-      features.teacher_category = problem.category;
-      features.teacher_difficulty = problem.difficulty;
-    }
-    
-    // Create data record
-    const mlDataRecord = {
-      record_id: `${session.session_code}-${problem.problem_id}-${Date.now()}`,
-      session_code: session.session_code,
-      problem_id: problem.problem_id,
-      created_at: new Date().toISOString(),
-      
-      // Raw data (for flexibility)
-      raw_data: {
-        problem_text: problem.raw_input,
-        category: problem.category,
-        difficulty: problem.difficulty,
-        normalized_latex: problem.normalized_latex,
-        hints_used: problem.hints_used_total || 0,
-        steps_count: (problem.steps || []).length,
-        completed: problem.completed || false
-      },
-      
-      // Feature vector (for ML training)
-      features,
-      
-      // Metadata
-      metadata: {
-        teacher_override: teacherOverride,
-        ocr_used: !!ocrResult,
-        timestamp: new Date().toISOString()
-      }
-    };
-    
-    // Store in DynamoDB
-    await dynamoDocClient.send(
-      new PutCommand({
-        TableName: ML_DATA_TABLE,
-        Item: mlDataRecord
-      })
-    );
-    
-    logger.info('ML data collected', {
-      record_id: mlDataRecord.record_id,
-      session_code: session.session_code,
-      problem_id: problem.problem_id,
+  // Extract features
+  const features = extractFeatures(problem, session);
+
+  // Add OCR metadata if available
+  if (ocrResult) {
+    features.ocr_source = ocrResult.source;
+    features.ocr_confidence = ocrResult.confidence;
+    features.ocr_success = ocrResult.success;
+  }
+
+  // Mark teacher override
+  if (teacherOverride) {
+    features.teacher_override = true;
+    features.teacher_category = problem.category;
+    features.teacher_difficulty = problem.difficulty;
+  }
+
+  // Create data record
+  const mlDataRecord = {
+    record_id: `${session.session_code}-${problem.problem_id}-${Date.now()}`,
+    session_code: session.session_code,
+    problem_id: problem.problem_id,
+    created_at: new Date().toISOString(),
+
+    // Raw data (for flexibility)
+    raw_data: {
+      problem_text: problem.raw_input,
       category: problem.category,
       difficulty: problem.difficulty,
-      teacher_override: teacherOverride
-    });
-    
-    return mlDataRecord;
-  } catch (error) {
-    // Log error but don't fail the main request
-    // Check if it's a table not found error
-    const isTableNotFound = error.name === 'ResourceNotFoundException' || 
-                           error.message?.includes('Requested resource not found') ||
-                           error.message?.includes('Cannot do operations on a non-existent table');
-    
-    if (isTableNotFound) {
-      logger.warn('ML data table not found - skipping ML data collection', {
-        table_name: ML_DATA_TABLE,
-        session_code: session.session_code,
-        problem_id: problem.problem_id,
-        hint: 'Run the infrastructure setup script to create the ML data table'
-      });
-    } else {
-      logger.error('Error collecting ML data', {
-        error: error.message,
-        error_name: error.name,
-        error_code: error.code,
-        session_code: session.session_code,
-        problem_id: problem.problem_id
-      });
+      normalized_latex: problem.normalized_latex,
+      hints_used: problem.hints_used_total || 0,
+      steps_count: (problem.steps || []).length,
+      completed: problem.completed || false
+    },
+
+    // Feature vector (for ML training)
+    features,
+
+    // Metadata
+    metadata: {
+      teacher_override: teacherOverride,
+      ocr_used: !!ocrResult,
+      timestamp: new Date().toISOString()
     }
-    
-    // Don't throw - ML data collection is non-critical
-    return null;
-  }
+  };
+
+  // No persistent ML data table in the in-memory demo mode
+  logger.debug('ML data collection skipped (in-memory demo mode)');
+
+  return mlDataRecord;
 }
 
 /**
@@ -195,17 +150,7 @@ export async function collectMLData(problem, session, ocrResult = null, teacherO
  * Note: This is a simple check, actual table creation should be done via infrastructure scripts
  */
 export async function validateMLDataTable() {
-  try {
-    // Try to put a test record (will fail if table doesn't exist)
-    // In production, this would be a proper DescribeTable call
-    logger.debug('ML data table validation skipped (table creation handled by infrastructure)');
-    return true;
-  } catch (error) {
-    logger.warn('ML data table may not exist', {
-      table_name: ML_DATA_TABLE,
-      error: error.message
-    });
-    return false;
-  }
+  logger.debug('ML data table validation skipped (in-memory demo mode)');
+  return true;
 }
 
