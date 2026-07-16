@@ -39,7 +39,7 @@ LaTeX:`;
           content: prompt
         }
       ],
-      max_tokens: 200,
+      max_tokens: 500,
       temperature: 0.3
     });
 
@@ -272,7 +272,7 @@ Text: "${text}"`;
           content: prompt
         }
       ],
-      max_tokens: 10,
+      max_tokens: 300,
       temperature: 0.1
     });
 
@@ -315,7 +315,7 @@ Problem: "${text}"`;
           content: prompt
         }
       ],
-      max_tokens: 100,
+      max_tokens: 300,
       temperature: 0.2
     });
 

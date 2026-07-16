@@ -395,7 +395,7 @@ Determine if the student's answer is correct. Respond with ONLY a JSON object:
           content: prompt
         }
       ],
-      max_tokens: 100,
+      max_tokens: 300,
       temperature: 0.3
     });
 

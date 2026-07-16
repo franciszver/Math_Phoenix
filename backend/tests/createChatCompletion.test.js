@@ -117,3 +117,101 @@ test('failure of the fallback attempt also propagates', async () => {
   );
   assert.equal(calls.length, 2);
 });
+
+test('in-band error body triggers retry with fallback model', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return { error: { message: 'Provider returned error', code: 502 } };
+    }
+    return { model: params.model, choices: [{ message: { content: 'fallback ok' } }] };
+  });
+
+  const result = await createChatCompletion({ model: TEXT_MODEL, messages: [] });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].model, TEXT_MODEL_FALLBACK);
+  assert.equal(result.model, TEXT_MODEL_FALLBACK);
+});
+
+test('content null with finish_reason length triggers retry with fallback model', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return { model: params.model, choices: [{ message: { content: null }, finish_reason: 'length' }] };
+    }
+    return { model: params.model, choices: [{ message: { content: 'fallback ok' } }] };
+  });
+
+  const result = await createChatCompletion({ model: TEXT_MODEL, messages: [] });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].model, TEXT_MODEL_FALLBACK);
+  assert.equal(result.model, TEXT_MODEL_FALLBACK);
+});
+
+test('empty-string content with finish_reason length triggers retry with fallback model', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return { model: params.model, choices: [{ message: { content: '' }, finish_reason: 'length' }] };
+    }
+    return { model: params.model, choices: [{ message: { content: 'fallback ok' } }] };
+  });
+
+  const result = await createChatCompletion({ model: TEXT_MODEL, messages: [] });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].model, TEXT_MODEL_FALLBACK);
+  assert.equal(result.model, TEXT_MODEL_FALLBACK);
+});
+
+test('no choices array triggers retry with fallback model', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return { model: params.model };
+    }
+    return { model: params.model, choices: [{ message: { content: 'fallback ok' } }] };
+  });
+
+  const result = await createChatCompletion({ model: TEXT_MODEL, messages: [] });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].model, TEXT_MODEL_FALLBACK);
+  assert.equal(result.model, TEXT_MODEL_FALLBACK);
+});
+
+test('fallback also empty/error-shaped throws OpenAIError', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return { model: params.model, choices: [{ message: { content: null }, finish_reason: 'length' }] };
+    }
+    return { error: { message: 'still broken' } };
+  });
+
+  await assert.rejects(
+    () => createChatCompletion({ model: TEXT_MODEL, messages: [] }),
+    /Empty completion from model/
+  );
+  assert.equal(calls.length, 2);
+});
+
+test('normal response with finish_reason stop passes through untouched', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    return { model: params.model, choices: [{ message: { content: 'all good' }, finish_reason: 'stop' }] };
+  });
+
+  const result = await createChatCompletion({ model: TEXT_MODEL, messages: [] });
+
+  assert.equal(calls.length, 1);
+  assert.equal(result.choices[0].message.content, 'all good');
+});

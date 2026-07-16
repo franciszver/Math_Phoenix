@@ -48,7 +48,7 @@ Respond with ONLY a brief description of the approach (1-2 sentences max).`;
           content: prompt
         }
       ],
-      max_tokens: 100,
+      max_tokens: 300,
       temperature: 0.3
     });
 
@@ -128,7 +128,7 @@ Respond with ONLY a JSON array with 2-3 questions in this exact format:
           content: prompt
         }
       ],
-      max_tokens: 500,
+      max_tokens: 800,
       temperature: 0.7
     });
 
@@ -239,7 +239,7 @@ Respond with ONLY the problem text, nothing else.`;
           content: prompt
         }
       ],
-      max_tokens: 150,
+      max_tokens: 400,
       temperature: 0.7
     });
 
