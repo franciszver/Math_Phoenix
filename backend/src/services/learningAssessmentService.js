@@ -4,7 +4,7 @@
  */
 
 import '../config/env.js';
-import { openai } from './openai.js';
+import { createChatCompletion, TEXT_MODEL } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';
 import { parseLLMJson } from '../utils/parseLLMJson.js';
@@ -36,8 +36,8 @@ Identify the core approach used (e.g., "solving linear equations by isolating va
 
 Respond with ONLY a brief description of the approach (1-2 sentences max).`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -116,8 +116,8 @@ Respond with ONLY a JSON array with 2-3 questions in this exact format:
   }
 ]`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -227,8 +227,8 @@ Generate a new problem that:
 
 Respond with ONLY the problem text, nothing else.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',

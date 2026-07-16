@@ -4,7 +4,7 @@
  */
 
 import '../config/env.js';
-import { openai } from './openai.js';
+import { createChatCompletion, TEXT_MODEL } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';
 import { parseLLMJson } from '../utils/parseLLMJson.js';
@@ -51,8 +51,8 @@ Respond with:
 
 Only respond with YES or NO followed by the formula name if applicable.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -129,8 +129,8 @@ Respond with:
 
 Only respond with YES or NO.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -347,8 +347,8 @@ Respond with ONLY a JSON object in this exact format:
   "reasoning": "brief explanation"
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -523,8 +523,8 @@ export async function generateTutorResponse(context) {
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages,
       max_tokens: 200,
       temperature: 0.7

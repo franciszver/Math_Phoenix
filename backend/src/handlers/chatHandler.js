@@ -15,7 +15,7 @@ import {
 } from '../services/learningAssessmentService.js';
 import { downloadImageFromS3, verifyProblemTextAgainstImage } from '../services/imageService.js';
 import { processProblem } from '../services/problemService.js';
-import { openai } from '../services/openai.js';
+import { createChatCompletion, TEXT_MODEL } from '../services/openai.js';
 import { createLogger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 import { validateSessionCode } from '../utils/sessionCode.js';
@@ -470,8 +470,8 @@ Determine if the student's answer is correct. Respond with ONLY a JSON object:
   "reasoning": "brief explanation"
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',

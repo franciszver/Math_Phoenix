@@ -7,7 +7,7 @@ import '../config/env.js';
 import { s3Client, textractClient } from './aws.js';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { DetectDocumentTextCommand } from '@aws-sdk/client-textract';
-import { openai } from './openai.js';
+import { createChatCompletion, TEXT_MODEL, VISION_MODEL } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { AWSError, OpenAIError } from '../utils/errorHandler.js';
 import { trackOCRMetrics, trackFallback, trackPipelineMetrics } from './metricsService.js';
@@ -304,8 +304,8 @@ If this is a WORD PROBLEM (contains narrative, story, context words like "has", 
 If this is a PURE MATH PROBLEM (just equations, numbers, and mathematical expressions without narrative context), respond with:
 "MATH_PROBLEM: [the mathematical content]"`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -366,8 +366,8 @@ export async function extractTextWithVision(imageBuffer) {
     // Convert buffer to base64
     const base64Image = imageBuffer.toString('base64');
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o', // Updated from deprecated 'gpt-4-vision-preview'
+    const response = await createChatCompletion({
+      model: VISION_MODEL,
       messages: [
         {
           role: 'user',
@@ -497,8 +497,8 @@ If the text matches exactly, respond with: "MATCHES"
 
 If the text does NOT match, respond with ONLY the correct text from the image. Do not include any explanation, just the correct text.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const response = await createChatCompletion({
+      model: VISION_MODEL,
       messages: [
         {
           role: 'user',
@@ -603,8 +603,8 @@ Text: "${text}"
 If there is only ONE problem, respond with: "SINGLE: [the problem text]"
 If there are MULTIPLE problems, respond with each problem on a new line numbered: "MULTIPLE:\n1. [first problem]\n2. [second problem]\n..."`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',

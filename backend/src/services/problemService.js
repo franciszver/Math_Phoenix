@@ -4,7 +4,7 @@
  */
 
 import '../config/env.js';
-import { openai } from './openai.js';
+import { createChatCompletion, TEXT_MODEL } from './openai.js';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';
 
@@ -27,8 +27,8 @@ Problem: "${rawText}"
 
 LaTeX:`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -196,8 +196,8 @@ Text: "${rawText}"
 If there is only ONE problem, respond with: "SINGLE: [the problem text]"
 If there are MULTIPLE problems, respond with each problem on a new line numbered: "MULTIPLE:\n1. [first problem]\n2. [second problem]\n..."`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -260,8 +260,8 @@ export async function hasMathProblem(text) {
 
 Text: "${text}"`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
@@ -303,8 +303,8 @@ export async function validateProblem(text) {
 
 Problem: "${text}"`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',

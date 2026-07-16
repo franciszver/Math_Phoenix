@@ -4,7 +4,7 @@
  */
 
 import '../config/env.js';
-import { openai } from './openai.js';
+import { createChatCompletion, TEXT_MODEL, openai } from './openai.js';
 import { getAllSessions } from './dashboardService.js';
 import { createLogger } from '../utils/logger.js';
 import { OpenAIError } from '../utils/errorHandler.js';
@@ -23,7 +23,7 @@ export async function generateProblemEmbedding(problemText) {
 
   try {
     const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: 'openai/text-embedding-3-small', // OpenRouter requires provider-prefixed model IDs
       input: problemText.trim()
     });
 
@@ -327,8 +327,8 @@ Return ONLY the problems, one per line, numbered:
 2. [second similar problem]
 ${count > 2 ? '...' : ''}`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await createChatCompletion({
+      model: TEXT_MODEL,
       messages: [
         {
           role: 'system',
