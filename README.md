@@ -1,8 +1,35 @@
 # Math_Phoenix
 
-An **AI-powered math tutor** that guides K‑12 students through problems using **Socratic questioning**.  
-Math_Phoenix accepts problems via **text or image upload**, normalizes math into LaTeX, and helps students discover solutions through guided dialogue.  
-It also provides a **teacher dashboard** with aggregate and per‑session insights.
+A **K-12 Socratic math tutor** — a web app where students submit a math problem (typed or photographed) and work through it in a guided chat.  
+The AI tutor never gives the answer; it asks one guiding question at a time, offers hints after two stuck turns, detects when the student reaches the solution, and follows up with a short multiple-choice quiz.  
+A password-protected **teacher dashboard** shows transcripts and stats.  
+Demo application: near-zero traffic, zero infrastructure budget.
+
+---
+
+## 🏗️ Architecture
+
+Stack: React/Vite static frontend + Node/Express (ESM) backend on Render (render.yaml Blueprint, auto-deploy on push to main). No other infrastructure by design.
+
+**AI layer** — OpenRouter free tier: all LLM traffic flows through one choke point, `createChatCompletion` in backend/src/services/openai.js (OpenAI SDK pointed at OpenRouter). Models are pure env config (TEXT_MODEL=openai/gpt-oss-20b:free, VISION_MODEL=google/gemma-4-31b-it:free, plus fallbacks) — a model swap is a dashboard edit, not a code change. The wrapper absorbs free-tier reality: retry-once-with-fallback on 429/5xx, OpenRouter in-band {error} bodies, and empty completions (reasoning models can exhaust max_tokens on hidden thinking); SDK-internal retries disabled for fast degradation. ~19 call sites (Socratic dialogue, classifiers, JSON extractors, MC generation, vision OCR) ride this wrapper.
+
+**Storage** — deliberately ephemeral: sessions/transcripts/dashboard data in an in-memory Map (memoryStore.js, structuredClone isolation); images processed in memory (base64 → vision OCR → discarded). Restarts wipe state — explicit tradeoff for zero cost/ops.
+
+**Design principle:** assume the AI substrate is unreliable and make that survivable — fallback chains, fail-fast timeouts, graceful error surfaces, deterministic fast-paths (bare expressions like 1+2 validate by regex, never an LLM coin-flip).
+
+---
+
+## 🔬 Testing
+
+Math_Phoenix uses three layers of testing:
+
+1. **Unit tests** (~164 node:test tests, zero deps) — LLM stubbed via an injection seam; verify parsing, fallback/retry, store semantics; run on every change.
+
+2. **Review gates** — every branch passes simplify/security-review/code-review before merge; these caught real bugs pre-ship (silent result truncation, infra noise contaminating quality metrics, completion-semantics drift).
+
+3. **Evals** — measurement against real-world model behavior. See the [Evals](#-evals) section below for full details.
+
+**Proof it works:** In its first day, the evaluation suite vetoed a planned 120B-model 'upgrade' with data (it lost or tied every behavior vs the current 20B, including −17.5 points on math-problem detection) and found two genuine prompt defects, both tracked with a measurement plan.
 
 ---
 
