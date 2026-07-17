@@ -17,21 +17,35 @@ function passFraction(result) {
 export function createReport(runDir) {
   fs.mkdirSync(runDir, { recursive: true });
   const resultsPath = path.join(runDir, 'results.jsonl');
+  // Opened once and kept open for the life of the run rather than
+  // open+write+close per case: fs.writeSync is already synchronous (each
+  // case's line reaches the OS before appendCase returns), so this keeps the
+  // "flushed on every call" durability intent without a syscall pair per case.
+  const resultsFd = fs.openSync(resultsPath, 'a');
   const cases = [];
+  // Cache passFraction(c) alongside each case so finalize() doesn't
+  // recompute it a second time for the failed-cases section below.
+  const fractions = new WeakMap();
 
   return {
     appendCase(result) {
       cases.push(result);
-      const fd = fs.openSync(resultsPath, 'a');
-      fs.writeSync(fd, JSON.stringify(result) + '\n');
-      fs.closeSync(fd);
+      fs.writeSync(resultsFd, JSON.stringify(result) + '\n');
     },
     finalize(meta = {}) {
       const behaviors = {};
       for (const c of cases) {
+        fractions.set(c, passFraction(c));
+        // A case that produced zero usable signal (every sample's
+        // generation/judge call errored - see run-tutor.js's
+        // `excludeFromAccuracy`) is still written to results.jsonl/the
+        // failed-cases section below for visibility, but is deliberately
+        // left out of the accuracy numerator AND denominator: an infra
+        // failure is not evidence of good or bad quality.
+        if (c.excludeFromAccuracy) continue;
         const b = behaviors[c.behavior] || { total: 0, passed: 0, accuracy: 0, callCount: 0 };
         b.total += 1;
-        b.passed += passFraction(c);
+        b.passed += fractions.get(c);
         b.callCount += Array.isArray(c.samples) ? c.samples.length : c.callCount || 1;
         behaviors[c.behavior] = b;
       }
@@ -45,7 +59,7 @@ export function createReport(runDir) {
       const rows = Object.entries(behaviors)
         .map(([name, b]) => `| ${name} | ${b.total} | ${b.passed.toFixed(2)} | ${(b.accuracy * 100).toFixed(1)}% | ${b.callCount} |`)
         .join('\n');
-      const failed = cases.filter((c) => passFraction(c) < 1);
+      const failed = cases.filter((c) => fractions.get(c) < 1);
       const failedSection = failed.length
         ? failed
             .map((c) => `### ${c.id}\n- expected: ${JSON.stringify(c.expected)}\n- actual: ${JSON.stringify(c.actual)}`)
@@ -53,6 +67,8 @@ export function createReport(runDir) {
         : '_none_';
       const md = `# Eval Summary\n\n| Behavior | Total | Passed | Accuracy | Calls |\n| --- | --- | --- | --- | --- |\n${rows}\n\n## Failed Cases\n\n${failedSection}\n`;
       fs.writeFileSync(path.join(runDir, 'summary.md'), md);
+
+      fs.closeSync(resultsFd);
 
       return summary;
     },
