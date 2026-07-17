@@ -114,5 +114,10 @@ export async function judgeTutorResponse({
     age_appropriate_tone: verdict.age_appropriate_tone,
     no_multi_number_elicitation: verdict.no_multi_number_elicitation,
     reasoning: verdict.reasoning,
+    // The model that actually answered, per the API response - may differ
+    // from the requested `judgeModel` if OpenRouter (or createChatCompletion's
+    // own fallback retry) silently routed to a different underlying model.
+    // Surfacing it keeps silent judge-fallbacks visible in reports.
+    judgeModelActual: response.model ?? judgeModel,
   };
 }

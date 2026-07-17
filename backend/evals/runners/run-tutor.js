@@ -50,7 +50,15 @@ export function leakRegexHit(text, knownAnswer, problemRawInput) {
   if (!answerStr) return false;
 
   const escaped = answerStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`\\b${escaped}\\b`, 'i');
+  // Word-char lookaround rather than \b: \b treats the match's own first/
+  // last character as one side of the boundary test, which breaks for
+  // answers that start with a non-word character - e.g. a negative number
+  // like "-4": \b immediately before "-" requires the *preceding* character
+  // to be a word char, so "x = -4" (space before "-") never matches even
+  // though it plainly leaks the answer. Checking only the neighboring
+  // characters (not the match's own edges) fixes that while keeping the
+  // same "don't match inside a larger token" behavior (e.g. "4" inside "40").
+  const pattern = new RegExp(`(?<!\\w)${escaped}(?!\\w)`, 'i');
 
   if (!pattern.test(text)) return false;
   if (problemRawInput && pattern.test(problemRawInput)) return false;
@@ -59,6 +67,21 @@ export function leakRegexHit(text, knownAnswer, problemRawInput) {
 
 function buildConversationSummary(steps = []) {
   return steps.map((s) => `Tutor: ${s.tutor_prompt}\nStudent: ${s.student_response}`).join('\n\n');
+}
+
+// Extract an HTTP status code from a thrown error. judgeTutorResponse throws
+// the raw createChatCompletion error unwrapped, so `.status` covers it
+// directly. generateTutorResponse (socraticEngine.js) catches that same
+// error and rethrows `new OpenAIError('Failed to generate tutor response',
+// error)`, which discards `.status` on the wrapper itself but preserves the
+// original error on `.originalError` - check there too.
+function extractStatus(err) {
+  return (
+    err?.status ??
+    err?.response?.status ??
+    err?.originalError?.status ??
+    err?.originalError?.response?.status
+  );
 }
 
 // --- Code-check validators (no LLM call) -----------------------------------
@@ -108,6 +131,35 @@ export function validateSimilarShape(options, count = 3) {
 // judge-reported leak) fails the whole case. Soft-check pass/fail per sample
 // is recorded on each sample for separate aggregate reporting; it does not
 // affect this case's `pass`.
+// P0 semantics (chosen deliberately - documented since they aren't obvious):
+// A GENERATION or JUDGE call that throws is an infra failure, not a
+// pedagogical quality failure, and must never masquerade as one:
+//  - every sample errored -> the case produced zero usable signal. It is
+//    excluded from the accuracy numerator AND denominator entirely
+//    (`excludeFromAccuracy: true`), and `errorStatus` surfaces the last
+//    error's HTTP status so main() can recognize a fully-errored 429 case as
+//    a quota-exhaustion signal and apply the same backoff/save/exit-2 path
+//    run-classifiers.js uses for a persistent 429 (see main() below).
+//  - some (not all) samples errored -> `degraded: true`. The case is scored
+//    on the strength of its clean samples only (an error sample contributes
+//    to neither the numerator nor denominator) - a dropped sample is
+//    evidence of nothing, not evidence of a bad response.
+// Builds an error-sample record with the same shape as a clean sample (so
+// report consumers never have to special-case a missing field), for the two
+// (generation, judge) call sites in runTutorCase below that can throw.
+function errorSample(err, { tutorMessage = null, leakRegexHit = null } = {}) {
+  return {
+    status: 'error',
+    tutorMessage,
+    leakRegexHit,
+    verdict: null,
+    hardPass: false,
+    softChecks: [],
+    error: err.message || String(err),
+    errorStatus: extractStatus(err),
+  };
+}
+
 export async function runTutorCase(testCase, judgeModel) {
   const { problem, steps = [], studentResponse } = testCase.input;
   const knownAnswer = testCase.known_answer;
@@ -115,9 +167,9 @@ export async function runTutorCase(testCase, judgeModel) {
 
   const samples = [];
   let calls = 0;
-  let error = null;
 
   for (let i = 0; i < SAMPLES_PER_SCENARIO; i++) {
+    let tutorMessage;
     try {
       calls += 1;
       const generation = await generateTutorResponse({
@@ -127,11 +179,18 @@ export async function runTutorCase(testCase, judgeModel) {
         studentResponse,
         conversationHistory: steps,
       });
-      const tutorMessage = generation.message;
-      const regexHit = leakRegexHit(tutorMessage, knownAnswer, problem.raw_input);
+      tutorMessage = generation.message;
+    } catch (err) {
+      samples.push(errorSample(err));
+      continue;
+    }
 
+    const regexHit = leakRegexHit(tutorMessage, knownAnswer, problem.raw_input);
+
+    let verdict;
+    try {
       calls += 1;
-      const verdict = await judgeTutorResponse({
+      verdict = await judgeTutorResponse({
         problemText: problem.raw_input,
         knownAnswer,
         conversationSummary,
@@ -139,29 +198,38 @@ export async function runTutorCase(testCase, judgeModel) {
         tutorMessage,
         judgeModel,
       });
-
-      const hardPass = verdict.no_answer_leak && !regexHit;
-      const softChecks = [verdict.has_guiding_question, verdict.age_appropriate_tone, verdict.no_multi_number_elicitation];
-
-      samples.push({ tutorMessage, leakRegexHit: regexHit, verdict, hardPass, softChecks });
     } catch (err) {
-      error = err.message || String(err);
-      samples.push({ tutorMessage: null, leakRegexHit: null, verdict: null, hardPass: false, softChecks: [] });
+      samples.push(errorSample(err, { tutorMessage, leakRegexHit: regexHit }));
+      continue;
     }
+
+    const hardPass = verdict.no_answer_leak && !regexHit;
+    const softChecks = [verdict.has_guiding_question, verdict.age_appropriate_tone, verdict.no_multi_number_elicitation];
+
+    samples.push({ status: 'ok', tutorMessage, leakRegexHit: regexHit, verdict, hardPass, softChecks });
   }
 
-  const pass = samples.length > 0 && samples.every((s) => s.hardPass);
-  const softTotal = samples.reduce((sum, s) => sum + s.softChecks.length, 0);
-  const softPassed = samples.reduce((sum, s) => sum + s.softChecks.filter(Boolean).length, 0);
+  const cleanSamples = samples.filter((s) => s.status === 'ok');
+  const errorSamples = samples.filter((s) => s.status === 'error');
+  const allErrored = cleanSamples.length === 0;
+  const degraded = errorSamples.length > 0 && !allErrored;
+  const lastError = errorSamples[errorSamples.length - 1];
+
+  const pass = allErrored ? false : cleanSamples.every((s) => s.hardPass);
+  const softTotal = cleanSamples.reduce((sum, s) => sum + s.softChecks.length, 0);
+  const softPassed = cleanSamples.reduce((sum, s) => sum + s.softChecks.filter(Boolean).length, 0);
 
   return {
     behavior: 'tutorResponse',
     id: testCase.id,
     pass,
-    samples: samples.map((s) => s.hardPass),
+    samples: cleanSamples.map((s) => s.hardPass),
     generations: samples,
     softCheck: { total: softTotal, passed: softPassed, rate: softTotal ? softPassed / softTotal : 0 },
-    error,
+    error: lastError ? lastError.error : null,
+    errorStatus: allErrored ? lastError?.errorStatus : undefined,
+    excludeFromAccuracy: allErrored,
+    degraded,
     calls,
   };
 }
@@ -341,7 +409,7 @@ export function applySoftGate(thresholdEval, softCheck) {
   return thresholdEval;
 }
 
-export async function main(argv = process.argv.slice(2), { rawCall } = {}) {
+export async function main(argv = process.argv.slice(2), { rawCall, backoffMs = 60000 } = {}) {
   const args = parseArgs(argv);
   const cases = loadCases(args);
   const calls = projectedCalls(cases);
@@ -387,11 +455,36 @@ export async function main(argv = process.argv.slice(2), { rawCall } = {}) {
   // used for the separate soft aggregate gate (see applySoftGate).
   const softCheck = { total: 0, passed: 0, rate: 0 };
 
+  // Set when a tutor case comes back fully errored (every sample's
+  // generation/judge call threw - see runTutorCase's `excludeFromAccuracy`)
+  // *because of* a 429, survives one backoff-retry of the same case, and is
+  // still fully errored on a 429 after that. That's the same "persistent
+  // 429, quota presumed exhausted" signal run-classifiers.js's runCase
+  // detects via its own backoff-retry - reusing it here means: stop making
+  // calls, save what's been recorded, and exit 2 (which always wins over any
+  // per-behavior threshold PASS/INCOMPLETE below).
+  let quotaExhausted = false;
+
   try {
     for (const testCase of cases) {
       if (completed.has(testCase.id)) continue;
       const suite = SUITES[testCase.suite];
-      const result = await suite.run(testCase, judgeModel);
+      let result = await suite.run(testCase, judgeModel);
+
+      if (result.excludeFromAccuracy && result.errorStatus === 429) {
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        result = await suite.run(testCase, judgeModel);
+        if (result.excludeFromAccuracy && result.errorStatus === 429) {
+          report.appendCase(result);
+          const remaining = cases.slice(cases.indexOf(testCase) + 1).filter((c) => !completed.has(c.id));
+          console.error(`Persistent 429 on case ${testCase.id} after backoff. Saving progress and exiting.`);
+          console.error(`  ${remaining.length} case(s) not run.`);
+          console.error(`Resume with: node evals/runners/run-tutor.js --resume ${runId} --yes`);
+          quotaExhausted = true;
+          break;
+        }
+      }
+
       if (result.softCheck) {
         softCheck.total += result.softCheck.total;
         softCheck.passed += result.softCheck.passed;
@@ -422,7 +515,7 @@ export async function main(argv = process.argv.slice(2), { rawCall } = {}) {
       console.log(`${status} ${name}: ${(r.accuracy * 100).toFixed(1)}% (threshold ${((r.threshold ?? 0) * 100).toFixed(1)}%)${incompleteNote}${softNote}`);
     }
 
-    process.exitCode = thresholdEval.exitCode;
+    process.exitCode = quotaExhausted ? 2 : thresholdEval.exitCode;
   }
 }
 

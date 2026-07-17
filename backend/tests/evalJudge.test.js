@@ -58,6 +58,7 @@ test('judgeTutorResponse: strict JSON response is parsed into a full verdict', a
   __setChatCompletionOverride(async (params) => {
     calls.push(params);
     return {
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
       choices: [
         {
           message: {
@@ -82,6 +83,7 @@ test('judgeTutorResponse: strict JSON response is parsed into a full verdict', a
     age_appropriate_tone: true,
     no_multi_number_elicitation: true,
     reasoning: 'Tutor asked a single guiding question without revealing the answer.',
+    judgeModelActual: 'meta-llama/llama-3.3-70b-instruct:free',
   });
 
   assert.equal(calls.length, 1);
@@ -120,6 +122,52 @@ test('judgeTutorResponse: fence-wrapped JSON is parsed', async () => {
   assert.equal(verdict.age_appropriate_tone, true);
   assert.equal(verdict.no_multi_number_elicitation, false);
   assert.equal(verdict.reasoning, 'Tutor stated the answer directly.');
+});
+
+test('judgeTutorResponse: judgeModelActual reflects the API response model, not the requested one, so a silent fallback is visible', async () => {
+  __setChatCompletionOverride(async () => ({
+    model: 'openai/gpt-oss-20b:free', // createChatCompletion silently fell back to a different model than requested
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            no_answer_leak: true,
+            has_guiding_question: true,
+            age_appropriate_tone: true,
+            no_multi_number_elicitation: true,
+            reasoning: 'fine',
+          }),
+        },
+      },
+    ],
+  }));
+
+  const verdict = await judgeTutorResponse(baseArgs);
+
+  assert.equal(verdict.judgeModelActual, 'openai/gpt-oss-20b:free');
+  assert.notEqual(verdict.judgeModelActual, baseArgs.judgeModel);
+});
+
+test('judgeTutorResponse: judgeModelActual falls back to the requested judgeModel if the response has no model field', async () => {
+  __setChatCompletionOverride(async () => ({
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            no_answer_leak: true,
+            has_guiding_question: true,
+            age_appropriate_tone: true,
+            no_multi_number_elicitation: true,
+            reasoning: 'fine',
+          }),
+        },
+      },
+    ],
+  }));
+
+  const verdict = await judgeTutorResponse(baseArgs);
+
+  assert.equal(verdict.judgeModelActual, baseArgs.judgeModel);
 });
 
 test('judgeTutorResponse: missing field throws', async () => {

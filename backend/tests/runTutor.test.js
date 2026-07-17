@@ -16,6 +16,7 @@ import { __setChatCompletionOverride } from '../src/services/openai.js';
 
 afterEach(() => {
   __setChatCompletionOverride(null);
+  process.exitCode = 0;
 });
 
 // --- leakRegexHit ------------------------------------------------------
@@ -203,6 +204,63 @@ test('runTutorCase: soft checks are recorded per sample and aggregated in softCh
   assert.equal(result.softCheck.total, 6); // 2 samples x 3 soft checks each
   assert.equal(result.softCheck.passed, 6);
   assert.equal(result.softCheck.rate, 1);
+});
+
+// --- runTutorCase: P0 - infra errors vs quality failures ------------------
+
+function make429() {
+  const err = new Error('429 Provider returned error');
+  err.status = 429;
+  return err;
+}
+
+test('runTutorCase: generation 429s on every sample -> case is an error, excluded from accuracy (not a quality fail)', async () => {
+  __setChatCompletionOverride(async () => {
+    throw make429();
+  });
+
+  const result = await runTutorCase(tutorCase, 'judge-model/x');
+
+  assert.equal(result.excludeFromAccuracy, true, 'a fully-errored case must not count toward accuracy');
+  assert.equal(result.degraded, false);
+  assert.equal(result.errorStatus, 429);
+  assert.ok(result.error, 'error message recorded for visibility');
+  assert.deepEqual(result.samples, [], 'no clean samples -> nothing counted toward the numerator or denominator');
+  assert.equal(
+    result.generations.every((g) => g.status === 'error'),
+    true
+  );
+});
+
+test('runTutorCase: one clean sample + one errored (non-429) sample -> degraded, scored on the clean sample only', async () => {
+  let call = 0;
+  __setChatCompletionOverride(async () => {
+    call += 1;
+    if (call === 1) return makeChoicesResponse('What operation should we try first?'); // sample 1 gen
+    if (call === 2) return makeChoicesResponse(goodVerdict); // sample 1 judge
+    throw new Error('Unexpected token, not valid JSON'); // sample 2 gen: a real (non-429) infra error
+  });
+
+  const result = await runTutorCase(tutorCase, 'judge-model/x');
+
+  assert.equal(result.degraded, true);
+  assert.equal(result.excludeFromAccuracy, false);
+  assert.equal(result.pass, true, 'scored on the strength of the one clean sample');
+  assert.deepEqual(result.samples, [true], 'the errored sample is excluded from both numerator and denominator');
+  assert.ok(result.error, 'the error is still recorded for visibility even though the case counts as a pass');
+});
+
+test('main(): a persistent 429 (both models, surviving the case-level backoff-retry) exits 2 and stops the run', async () => {
+  let callCount = 0;
+  const rawCall = async () => {
+    callCount += 1;
+    throw make429();
+  };
+
+  await main(['--filter', 'tutor', '--limit', '1', '--yes', '--rpm', '1000000'], { rawCall, backoffMs: 0 });
+
+  assert.equal(process.exitCode, 2, 'persistent 429 must exit 2, never a silent threshold result');
+  assert.ok(callCount > 0, 'the stub must actually have been invoked');
 });
 
 // --- threshold hard/soft split --------------------------------------------
