@@ -48,13 +48,26 @@ export const THRESHOLDS = {
 // Pure function (no process.exit) so threshold logic is unit-testable.
 // Returns per-behavior pass/fail against THRESHOLDS plus an overall exit code
 // (0 if every behavior meets its threshold, 1 otherwise).
-export function evaluateThresholds(behaviors, thresholds = THRESHOLDS) {
+//
+// expectedCounts (optional): map of behavior name -> case count this run
+// intended to attempt. A behavior that recorded fewer cases than expected
+// (e.g. a run aborted mid-behavior, or a behavior that never got to start
+// at all) is forced to fail regardless of the accuracy of the partial
+// subset it did complete - a lucky 2/2 on a truncated 20-case behavior must
+// never read as a clean PASS. Behaviors present only in expectedCounts (not
+// in `behaviors` at all, because zero cases ran) are synthesized with
+// total: 0 so they show up as failures instead of being silently invisible.
+export function evaluateThresholds(behaviors, thresholds = THRESHOLDS, expectedCounts = {}) {
   const results = {};
   let exitCode = 0;
-  for (const [name, b] of Object.entries(behaviors)) {
+  const names = new Set([...Object.keys(behaviors), ...Object.keys(expectedCounts)]);
+  for (const name of names) {
+    const b = behaviors[name] || { total: 0, accuracy: 0 };
     const threshold = thresholds[name];
-    const pass = threshold === undefined ? true : b.accuracy >= threshold;
-    results[name] = { accuracy: b.accuracy, threshold, pass };
+    const expected = expectedCounts[name];
+    const incomplete = expected !== undefined && b.total < expected;
+    const pass = incomplete ? false : (threshold === undefined ? true : b.accuracy >= threshold);
+    results[name] = { accuracy: b.accuracy, threshold, pass, total: b.total, expected, incomplete };
     if (!pass) exitCode = 1;
   }
   return { results, exitCode };
@@ -204,7 +217,7 @@ function getGitCommit() {
   }
 }
 
-export async function runCase(behaviorDef, testCase, pacer) {
+export async function runCase(behaviorDef, testCase, pacer, { backoffMs = 60000 } = {}) {
   let lastActual = null;
   let lastError = null;
   let calls = 0;
@@ -230,7 +243,7 @@ export async function runCase(behaviorDef, testCase, pacer) {
       if (status === 429 && attempt === 0) {
         // Persistent 429 that survived the createChatCompletion fallback:
         // back off once, then retry this case exactly once more.
-        await new Promise((resolve) => setTimeout(resolve, 60000));
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
       if (status === 429) {
@@ -259,8 +272,13 @@ export async function runCase(behaviorDef, testCase, pacer) {
   };
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
+// argv/{ rawCall, backoffMs } are only ever supplied by tests: argv lets a
+// test drive the CLI without touching process.argv, rawCall/backoffMs let a
+// test simulate 429s and skip the real 60s sleep without hitting the
+// network. Production invocation (`node run-classifiers.js`) uses the
+// defaults below, which are exactly the previous hardcoded behavior.
+export async function main(argv = process.argv.slice(2), { rawCall, backoffMs } = {}) {
+  const args = parseArgs(argv);
   const cases = loadCases(args);
 
   const models = [TEXT_MODEL];
@@ -287,25 +305,49 @@ async function main() {
   const completed = args.resume ? loadCompleted(runDir) : new Set();
   const pacer = createPacer(args.rpm);
 
+  // Cases this invocation actually intends to attempt (excludes anything a
+  // --resume already has recorded), grouped by behavior. Used below to catch
+  // a run that stops early - whether mid-behavior or before a later behavior
+  // ever starts - so a partial result can never be mistaken for a complete,
+  // passing one.
+  const expectedCounts = {};
+  for (const c of cases) {
+    if (completed.has(c.id)) continue;
+    expectedCounts[c.behavior] = (expectedCounts[c.behavior] || 0) + 1;
+  }
+
   __setChatCompletionOverride(async (params) => {
     await pacer.wait();
     pacer.count(params.model);
-    return openai.chat.completions.create(params);
+    return (rawCall || ((p) => openai.chat.completions.create(p)))(params);
   });
 
   let exitCode = 0;
   try {
-    for (const testCase of cases) {
+    for (let i = 0; i < cases.length; i++) {
+      const testCase = cases[i];
       if (completed.has(testCase.id)) continue;
 
       const behaviorDef = BEHAVIORS[testCase.behavior];
       try {
-        const result = await runCase(behaviorDef, testCase, pacer);
+        const result = await runCase(behaviorDef, testCase, pacer, { backoffMs });
         report.appendCase(result);
       } catch (error) {
         const status = error?.status ?? error?.response?.status;
         if (status === 429) {
+          // Persistent 429: the backoff-retry itself failed again. Stop
+          // making calls (quota is presumed exhausted for the whole run,
+          // not just this case) and make the incompleteness impossible to
+          // miss - both in the console and in the exit code, which always
+          // wins over any per-behavior threshold PASS (see below).
+          const remaining = cases.slice(i + 1).filter((c) => !completed.has(c.id));
+          const remainingInBehavior = remaining.filter((c) => c.behavior === testCase.behavior).length;
+          const laterBehaviors = [...new Set(remaining.filter((c) => c.behavior !== testCase.behavior).map((c) => c.behavior))];
           console.error(`Persistent 429 on case ${testCase.id} after backoff. Saving progress and exiting.`);
+          console.error(`  ${remainingInBehavior} case(s) not run in behavior "${testCase.behavior}".`);
+          if (laterBehaviors.length) {
+            console.error(`  Behavior(s) not started at all: ${laterBehaviors.join(', ')}.`);
+          }
           console.error(`Resume with: node evals/runners/run-classifiers.js --resume ${runId} --yes`);
           exitCode = 2;
           break;
@@ -335,10 +377,11 @@ async function main() {
     console.log(JSON.stringify(summary.behaviors, null, 2));
     console.log(`Pacer stats: ${JSON.stringify(pacer.stats())}`);
 
-    const thresholdEval = evaluateThresholds(summary.behaviors);
+    const thresholdEval = evaluateThresholds(summary.behaviors, undefined, expectedCounts);
     for (const [name, r] of Object.entries(thresholdEval.results)) {
-      const status = r.pass ? 'PASS' : 'FAIL';
-      console.log(`${status} ${name}: ${(r.accuracy * 100).toFixed(1)}% (threshold ${((r.threshold ?? 0) * 100).toFixed(1)}%)`);
+      const status = r.pass ? 'PASS' : r.incomplete ? 'INCOMPLETE' : 'FAIL';
+      const incompleteNote = r.incomplete ? ` [only ${r.total}/${r.expected} cases ran]` : '';
+      console.log(`${status} ${name}: ${(r.accuracy * 100).toFixed(1)}% (threshold ${((r.threshold ?? 0) * 100).toFixed(1)}%)${incompleteNote}`);
     }
     // Exit code 2 (quota exhaustion) takes priority over threshold failures.
     if (exitCode !== 2) {
