@@ -1,0 +1,162 @@
+[
+  {
+    "id": "e2e-001",
+    "persona": "always-stuck",
+    "problem": {
+      "raw_input": "What is the area of a rectangle with length 6 cm and width 4 cm?",
+      "normalized_latex": "$6 \\times 4$",
+      "category": "geometry"
+    },
+    "known_answer": 24,
+    "script": [
+      "I don't know",
+      "I don't know",
+      "I don't know",
+      "I don't know",
+      "I don't know",
+      "I don't know"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "hintBy": 3
+    }
+  },
+  {
+    "id": "e2e-002",
+    "persona": "always-stuck",
+    "problem": {
+      "raw_input": "What is 35 + 27?",
+      "normalized_latex": "$35 + 27$",
+      "category": "arithmetic"
+    },
+    "known_answer": 62,
+    "script": [
+      "I don't know",
+      "I don't know",
+      "I don't know",
+      "I don't know",
+      "I don't know",
+      "I don't know"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "hintBy": 3
+    }
+  },
+  {
+    "id": "e2e-003",
+    "persona": "fast-correct",
+    "problem": {
+      "raw_input": "Solve 2x + 6 = 14",
+      "normalized_latex": "$2x + 6 = 14$",
+      "category": "algebra"
+    },
+    "known_answer": 4,
+    "script": [
+      "First I subtract 6 from both sides to get 2x = 8",
+      "Then I divide both sides by 2",
+      "x = 4"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "completionBy": 4,
+      "completedCorrect": true
+    }
+  },
+  {
+    "id": "e2e-004",
+    "persona": "fast-correct",
+    "problem": {
+      "raw_input": "What is 9 times 7?",
+      "normalized_latex": "$9 \\times 7$",
+      "category": "arithmetic"
+    },
+    "known_answer": 63,
+    "script": [
+      "I can break it into 9 times 5 plus 9 times 2",
+      "That is 45 plus 18",
+      "The answer is 63"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "completionBy": 4,
+      "completedCorrect": true
+    }
+  },
+  {
+    "id": "e2e-005",
+    "persona": "wrong-then-corrects",
+    "problem": {
+      "raw_input": "Solve x - 5 = 12",
+      "normalized_latex": "$x - 5 = 12$",
+      "category": "algebra"
+    },
+    "known_answer": 17,
+    "script": [
+      "I subtract 5 from both sides so x = 7",
+      "Wait, I should add 5 to both sides",
+      "x = 17"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "completionBy": 4,
+      "completedCorrect": true
+    }
+  },
+  {
+    "id": "e2e-006",
+    "persona": "wrong-then-corrects",
+    "problem": {
+      "raw_input": "What is 1/2 + 1/4?",
+      "normalized_latex": "$\\frac{1}{2} + \\frac{1}{4}$",
+      "category": "fractions"
+    },
+    "known_answer": "3/4",
+    "script": [
+      "I add the tops and bottoms so 2/6",
+      "Actually I need a common denominator, 2/4 + 1/4",
+      "3/4"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "completionBy": 4,
+      "completedCorrect": true
+    }
+  },
+  {
+    "id": "e2e-007",
+    "persona": "gives-answer-immediately",
+    "problem": {
+      "raw_input": "What is 45 divided by 3?",
+      "normalized_latex": "$45 \\div 3$",
+      "category": "arithmetic"
+    },
+    "known_answer": 15,
+    "script": [
+      "The answer is 15"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "completionBy": 1,
+      "completedCorrect": true
+    }
+  },
+  {
+    "id": "e2e-008",
+    "persona": "gives-answer-immediately",
+    "problem": {
+      "raw_input": "What is 25% of 80?",
+      "normalized_latex": "$0.25 \\times 80$",
+      "category": "arithmetic"
+    },
+    "known_answer": 20,
+    "script": [
+      "The answer is 20"
+    ],
+    "maxTurns": 6,
+    "expectations": {
+      "completionBy": 1,
+      "completedCorrect": true
+    }
+  }
+]

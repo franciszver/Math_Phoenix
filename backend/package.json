@@ -10,7 +10,9 @@
     "test:vision": "node scripts/test-vision.js",
     "test:api": "node scripts/test-api.js",
     "eval:classifiers": "node evals/runners/run-classifiers.js",
-    "eval:tutor": "node evals/runners/run-tutor.js"
+    "eval:tutor": "node evals/runners/run-tutor.js",
+    "eval:models": "node evals/runners/run-matrix.js",
+    "eval:e2e": "node evals/runners/run-e2e.js"
   },
   "engines": {
     "node": ">=18.0.0"
