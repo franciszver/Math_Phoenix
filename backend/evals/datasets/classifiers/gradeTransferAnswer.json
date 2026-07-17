@@ -1,0 +1,25 @@
+[
+  { "id": "gta-001", "input": { "transferProblem": { "problem_text": "A store sells pencils in packs of 6. How many pencils are in 4 packs?" }, "studentAnswer": "24" }, "expected": { "is_correct": true }, "tags": ["correct-bare"] },
+  { "id": "gta-002", "input": { "transferProblem": { "problem_text": "A car travels 45 miles per hour. How far does it travel in 3 hours?" }, "studentAnswer": "I think it's 135" }, "expected": { "is_correct": true }, "tags": ["correct-embedded"] },
+  { "id": "gta-003", "input": { "transferProblem": { "problem_text": "A rope is 10 feet long. If 3 feet are cut off, how long is the remaining rope?" }, "studentAnswer": "7 feet" }, "expected": { "is_correct": true }, "tags": ["correct-with-units"] },
+  { "id": "gta-004", "input": { "transferProblem": { "problem_text": "Twelve students share 36 cookies equally. How many cookies does each student get?" }, "studentAnswer": "3 cookies each" }, "expected": { "is_correct": true }, "tags": ["correct-with-units"] },
+  { "id": "gta-005", "input": { "transferProblem": { "problem_text": "A tank holds 50 liters. If 15 liters are drained, how many liters remain?" }, "studentAnswer": "the answer is 35" }, "expected": { "is_correct": true }, "tags": ["correct-embedded"] },
+  { "id": "gta-006", "input": { "transferProblem": { "problem_text": "What is 9 times 7?" }, "studentAnswer": "63" }, "expected": { "is_correct": true }, "tags": ["correct-bare"] },
+  { "id": "gta-007", "input": { "transferProblem": { "problem_text": "A number increased by 8 equals 20. What is the number?" }, "studentAnswer": "twelve" }, "expected": { "is_correct": true }, "tags": ["correct-format-word"] },
+  { "id": "gta-008", "input": { "transferProblem": { "problem_text": "A number is 15 minus 6. What is the number?" }, "studentAnswer": "9.0" }, "expected": { "is_correct": true }, "tags": ["correct-format-decimal"] },
+  { "id": "gta-019", "input": { "transferProblem": { "problem_text": "A field trip costs $15 per student. What is the cost for 6 students?" }, "studentAnswer": "I calculated 90 dollars" }, "expected": { "is_correct": true }, "tags": ["correct-embedded"] },
+
+  { "id": "gta-009", "input": { "transferProblem": { "problem_text": "A store sells pencils in packs of 6. How many pencils are in 5 packs?" }, "studentAnswer": "25" }, "expected": { "is_correct": false }, "tags": ["wrong"] },
+  { "id": "gta-010", "input": { "transferProblem": { "problem_text": "A car travels 60 miles per hour for 2 hours. How far does it travel?" }, "studentAnswer": "100" }, "expected": { "is_correct": false }, "tags": ["wrong"] },
+  { "id": "gta-011", "input": { "transferProblem": { "problem_text": "A rope is 20 feet long. If 8 feet are cut off, how long is the remaining rope?" }, "studentAnswer": "I don't know, maybe 20?" }, "expected": { "is_correct": false }, "tags": ["wrong"] },
+  { "id": "gta-012", "input": { "transferProblem": { "problem_text": "What is 8 times 6?" }, "studentAnswer": "54" }, "expected": { "is_correct": false }, "tags": ["wrong"] },
+  { "id": "gta-020", "input": { "transferProblem": { "problem_text": "A number tripled is 27. What is the number?" }, "studentAnswer": "0.5" }, "expected": { "is_correct": false }, "tags": ["wrong"] },
+
+  { "id": "gta-013", "input": { "transferProblem": { "problem_text": "A tank holds 40 liters. If 10 liters are drained, how many remain?" }, "studentAnswer": "banana" }, "expected": { "is_correct": false }, "tags": ["nonsense"] },
+  { "id": "gta-018", "input": { "transferProblem": { "problem_text": "A baker made 24 muffins and sold 9. How many are left?" }, "studentAnswer": "asdf lol" }, "expected": { "is_correct": false }, "tags": ["nonsense"] },
+
+  { "id": "gta-014", "input": { "transferProblem": { "problem_text": "Twelve students share 24 cookies equally. How many cookies does each get?" }, "studentAnswer": "3" }, "expected": { "is_correct": false }, "tags": ["close-off-by-one"] },
+  { "id": "gta-015", "input": { "transferProblem": { "problem_text": "The temperature was -5 degrees and rose by 8 degrees. What is the new temperature?" }, "studentAnswer": "-3" }, "expected": { "is_correct": false }, "tags": ["close-sign-error"] },
+  { "id": "gta-016", "input": { "transferProblem": { "problem_text": "A number decreased by 10 equals 5. What is the number?" }, "studentAnswer": "14" }, "expected": { "is_correct": false }, "tags": ["close-off-by-one"] },
+  { "id": "gta-017", "input": { "transferProblem": { "problem_text": "A submarine is at -20 meters and rises 20 meters. What is its new depth?" }, "studentAnswer": "20" }, "expected": { "is_correct": false }, "tags": ["close-sign-error"] }
+]

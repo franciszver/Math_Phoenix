@@ -1,0 +1,28 @@
+[
+  { "id": "dmp-001", "input": { "text": "Solve for x: 2x + 5 = 13" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "algebra"] },
+  { "id": "dmp-002", "input": { "text": "What is 15 + 27?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "arithmetic"] },
+  { "id": "dmp-003", "input": { "text": "A rectangle has a length of 5 and a width of 3. What is its area?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "word-problem"] },
+  { "id": "dmp-004", "input": { "text": "Sarah has 5 apples, buys 3 more, and then eats 2 of them. How many apples does she have now?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "word-problem", "multi-clause"] },
+  { "id": "dmp-005", "input": { "text": "If a train travels 60 miles per hour for 2 hours, and then slows to 40 miles per hour for 1 more hour, how far does it travel in total?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "word-problem", "multi-clause"] },
+  { "id": "dmp-006", "input": { "text": "Simplify: 3(x+2) - 5" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "algebra"] },
+  { "id": "dmp-007", "input": { "text": "A triangle has a base of 10 and a height of 4. Find its area and then find its perimeter if all three sides are 10, 8, and 6." }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "geometry", "multi-clause"] },
+  { "id": "dmp-008", "input": { "text": "1. Solve for x: x + 4 = 9" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "numbered-single"] },
+  { "id": "dmp-009", "input": { "text": "Tom read 45 pages on Monday and 30 pages on Tuesday. How many pages did he read in total?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "word-problem"] },
+  { "id": "dmp-010", "input": { "text": "What is 20% of 80, given that 80 is the total number of students in the school?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "arithmetic"] },
+  { "id": "dmp-011", "input": { "text": "Factor x^2 - 9" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "algebra"] },
+  { "id": "dmp-012", "input": { "text": "Convert 3/4 to a decimal and then to a percentage" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "multi-clause"] },
+  { "id": "dmp-013", "input": { "text": "A circle has a radius of 7 cm. What is its circumference?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "geometry"] },
+  { "id": "dmp-014", "input": { "text": "Find the derivative of f(x) = x^2 + 3x, then evaluate it at x = 2" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "algebra", "multi-clause"] },
+  { "id": "dmp-015", "input": { "text": "There are 24 students in a class. If they are split evenly into 4 groups, how many students are in each group?" }, "expected": { "multiple": false, "problemCount": 1 }, "tags": ["single", "word-problem"] },
+
+  { "id": "dmp-016", "input": { "text": "1. What is 5 + 7?\n2. What is 12 - 4?" }, "expected": { "multiple": true, "problemCount": 2 }, "tags": ["multiple", "numbered"] },
+  { "id": "dmp-017", "input": { "text": "Solve for x: 2x = 10. Also, find the area of a circle with radius 3." }, "expected": { "multiple": true, "problemCount": 2 }, "tags": ["multiple", "unnumbered"] },
+  { "id": "dmp-018", "input": { "text": "1. Simplify 3x + 2x\n2. Factor x^2 - 4\n3. Solve 4x = 20" }, "expected": { "multiple": true, "problemCount": 3 }, "tags": ["multiple", "numbered"] },
+  { "id": "dmp-019", "input": { "text": "Problem 1: What is 15% of 60? Problem 2: What is the perimeter of a square with side 4? Problem 3: Convert 5/8 to a decimal." }, "expected": { "multiple": true, "problemCount": 3 }, "tags": ["multiple", "labeled"] },
+  { "id": "dmp-020", "input": { "text": "1) A train travels 50 mph for 2 hours. How far does it go?\n2) A car travels 60 mph for 3 hours. How far does it go?" }, "expected": { "multiple": true, "problemCount": 2 }, "tags": ["multiple", "numbered", "word-problem"] },
+  { "id": "dmp-021", "input": { "text": "1. x + 3 = 7\n2. y - 2 = 5\n3. 2z = 16\n4. w/2 = 9" }, "expected": { "multiple": true, "problemCount": 4 }, "tags": ["multiple", "numbered", "algebra"] },
+  { "id": "dmp-022", "input": { "text": "Question 1: Find the hypotenuse of a right triangle with legs 3 and 4. Question 2: Find the area of that same triangle." }, "expected": { "multiple": true, "problemCount": 2 }, "tags": ["multiple", "labeled", "geometry"] },
+  { "id": "dmp-023", "input": { "text": "1. What is 8 x 9?\n2. What is 81 / 9?" }, "expected": { "multiple": true, "problemCount": 2 }, "tags": ["multiple", "numbered", "arithmetic"] },
+  { "id": "dmp-024", "input": { "text": "First problem: solve x^2 = 49. Second problem: solve 3x - 6 = 0. Third problem: solve x/5 = 2." }, "expected": { "multiple": true, "problemCount": 3 }, "tags": ["multiple", "labeled", "algebra"] },
+  { "id": "dmp-025", "input": { "text": "1. Sarah has 10 apples and gives away 3. How many does she have left?\n2. Tom has 5 oranges and buys 6 more. How many does he have now?" }, "expected": { "multiple": true, "problemCount": 2 }, "tags": ["multiple", "numbered", "word-problem"] }
+]
