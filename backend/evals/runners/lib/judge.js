@@ -152,6 +152,32 @@ Respond with STRICT JSON only, no markdown fences, no extra commentary, in exact
 }
 
 /**
+ * Call the judge model with the rubric prompt, optionally prefixed with a
+ * system-level nudge (used for the strict-retry pass), and return the raw
+ * response content.
+ * @throws if the response has no content to parse.
+ */
+async function callJudgeModel(judgeModel, prompt, systemNudge) {
+  const messages = systemNudge
+    ? [{ role: 'system', content: systemNudge }, { role: 'user', content: prompt }]
+    : [{ role: 'user', content: prompt }];
+
+  const response = await createChatCompletion({
+    model: judgeModel,
+    max_tokens: 500,
+    temperature: 0.1,
+    messages,
+  });
+
+  const content = response.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('Judge response had no content to parse');
+  }
+
+  return { response, content };
+}
+
+/**
  * Judge a single tutor response against the Socratic rubric.
  * @throws if the judge model's response can't be parsed, or is missing a required field.
  */
@@ -165,51 +191,28 @@ export async function judgeTutorResponse({
 }) {
   const prompt = buildRubricPrompt({ problemText, knownAnswer, conversationSummary, studentResponse, tutorMessage });
 
-  const response = await createChatCompletion({
-    model: judgeModel,
-    max_tokens: 500,
-    temperature: 0.1,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const content = response.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error('Judge response had no content to parse');
-  }
-
+  let { response: finalResponse, content } = await callJudgeModel(judgeModel, prompt);
   let result = tryParseVerdict(content);
-  let finalResponse = response;
+  let usedRetry = false;
 
   if (!result) {
     // Some judge models (observed: nemotron-3-super) prefix their JSON with
     // reasoning prose even when instructed to respond with JSON only, and
     // the prose can't be recovered via brace-scanning either. Retry once
     // with an extra nudge before giving up.
-    const retryResponse = await createChatCompletion({
-      model: judgeModel,
-      max_tokens: 500,
-      temperature: 0.1,
-      messages: [
-        { role: 'system', content: RETRY_NUDGE },
-        { role: 'user', content: prompt },
-      ],
-    });
-
-    const retryContent = retryResponse.choices?.[0]?.message?.content;
-    if (!retryContent) {
-      throw new Error('Judge response had no content to parse');
-    }
-
-    result = tryParseVerdict(retryContent);
+    usedRetry = true;
+    ({ response: finalResponse, content } = await callJudgeModel(judgeModel, prompt, RETRY_NUDGE));
+    result = tryParseVerdict(content);
     if (!result) {
       throw new Error('Judge response could not be parsed as JSON');
     }
-
-    finalResponse = retryResponse;
-    result.recovered = true; // the retry itself counts as recovery, even if this content parsed cleanly
   }
 
   const { verdict, recovered } = result;
+  // Visibility into judge flakiness: true whenever attempt 1's direct
+  // parseLLMJson call didn't cleanly produce the verdict (brace-scan
+  // recovery and/or a retry call were needed).
+  const parseRecovered = recovered || usedRetry;
 
   for (const field of REQUIRED_FIELDS) {
     if (!(field in verdict)) {
@@ -230,10 +233,7 @@ export async function judgeTutorResponse({
     judgeModelActual: finalResponse.model ?? judgeModel,
   };
 
-  if (recovered) {
-    // Visibility into judge flakiness: true whenever attempt 1's direct
-    // parseLLMJson call didn't cleanly produce the verdict (brace-scan
-    // recovery and/or a retry call were needed).
+  if (parseRecovered) {
     verdictOut.parseRecovered = true;
   }
 
