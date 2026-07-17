@@ -235,6 +235,44 @@ Rate limiting is deferred to Phase 3. See `_docs/actionable/tasks.md` for detail
 
 ---
 
+## 🧪 Evals
+
+**Purpose:** Math_Phoenix uses golden-dataset and LLM-as-judge evaluations to measure the real service pipeline (prompts + parsing + fallback) against OpenRouter free-tier models. Evals enable:
+- **Regression detection** when free models rotate or availability changes
+- **Objective model comparison** across candidate models
+- **Prompt-change measurement** to validate improvements
+
+**Evaluation Suites** (all commands from `backend/`):
+
+- `npm run eval:classifiers` — Test 7 classifier behaviors against ~190 golden cases; report accuracy vs per-behavior thresholds
+- `npm run eval:tutor` — Measure Socratic tutor quality via cross-family LLM judge:
+  - Hard gate: never reveals the answer
+  - Soft checks: guiding question quality, appropriate tone, single-number rule
+  - Plus MCQ, transfer, and similar-shape problem checks
+- `npm run eval:e2e` — Run scripted student conversation simulations (4 personas) with deterministic flow assertions
+- `npm run eval:models -- --models a,b` — Run suites across candidate models (default: classifiers; add `--suites classifiers,tutor`); produces a merged comparison table
+
+**Common Flags:**
+- `--dry-run` — Display call budget and exit (zero API calls)
+- `--limit` — Limit dataset size
+- `--filter` — Run subset of evals by name
+- `--rpm` — Set request rate (default 15 req/min)
+- `--resume <run-id>` — Resume interrupted run
+- `--yes` — Skip prompts
+
+**Quota & Rate Limits:**
+All evals share the production OpenRouter API key. Free tier: 20 req/min, 1,000 req/day. Always `--dry-run` first to check call budget. Runs are resumable after quota exhaustion (exit code 2 prints the resume command).
+
+**Layout:** Eval assets live in `backend/evals/`:
+- `datasets/` — Golden-case datasets
+- `runners/` — Eval suite implementations
+- `reports/` (gitignored) — Run outputs and logs
+- `BASELINES.md` — Committed baseline summaries; investigate any >10-point regression
+
+**Judge Calibration:** Judge verdicts were validated against 11 human labels (100% agreement) before deployment.
+
+---
+
 ## 📚 Documentation
 
 See `_docs/` for detailed documentation:
