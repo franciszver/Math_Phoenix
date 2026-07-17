@@ -42,6 +42,83 @@ const REQUIRED_FIELDS = [
   'reasoning',
 ];
 
+const RETRY_NUDGE = 'Respond with ONLY the JSON object. No explanation before or after.';
+
+/**
+ * Scan `text` for the first balanced {...} block, respecting JSON string
+ * quoting/escaping so braces that appear inside string values (e.g. a
+ * "reasoning" field containing literal `{`/`}`) don't throw off the depth
+ * count. Returns the matched substring, or null if no balanced block exists.
+ * @param {string} text
+ * @returns {string|null}
+ */
+function extractFirstJsonObject(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function hasAllRequiredFields(verdict) {
+  return REQUIRED_FIELDS.every((field) => field in verdict);
+}
+
+/**
+ * Try to recover a usable verdict object from raw judge response content.
+ * Attempt 1: parse `content` as-is with parseLLMJson.
+ * Attempt 2 (only if attempt 1 throws): extract the first balanced {...}
+ * block from `content` and parse that; only accepted if it has all required
+ * fields.
+ * @param {string} content
+ * @returns {{verdict: object, recovered: boolean}|null} null if unusable
+ */
+function tryParseVerdict(content) {
+  try {
+    return { verdict: parseLLMJson(content), recovered: false };
+  } catch {
+    const block = extractFirstJsonObject(content);
+    if (!block) return null;
+    try {
+      const verdict = parseLLMJson(block);
+      if (hasAllRequiredFields(verdict)) {
+        return { verdict, recovered: true };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+}
+
 function buildRubricPrompt({ problemText, knownAnswer, conversationSummary, studentResponse, tutorMessage }) {
   return `You are grading a math tutor's response for a K-12 Socratic tutoring app. The tutor must never give direct answers, must ask guiding questions, must keep an encouraging age-appropriate tone, and must never ask the student to provide multiple numbers in a single turn.
 
@@ -100,7 +177,39 @@ export async function judgeTutorResponse({
     throw new Error('Judge response had no content to parse');
   }
 
-  const verdict = parseLLMJson(content);
+  let result = tryParseVerdict(content);
+  let finalResponse = response;
+
+  if (!result) {
+    // Some judge models (observed: nemotron-3-super) prefix their JSON with
+    // reasoning prose even when instructed to respond with JSON only, and
+    // the prose can't be recovered via brace-scanning either. Retry once
+    // with an extra nudge before giving up.
+    const retryResponse = await createChatCompletion({
+      model: judgeModel,
+      max_tokens: 500,
+      temperature: 0.1,
+      messages: [
+        { role: 'system', content: RETRY_NUDGE },
+        { role: 'user', content: prompt },
+      ],
+    });
+
+    const retryContent = retryResponse.choices?.[0]?.message?.content;
+    if (!retryContent) {
+      throw new Error('Judge response had no content to parse');
+    }
+
+    result = tryParseVerdict(retryContent);
+    if (!result) {
+      throw new Error('Judge response could not be parsed as JSON');
+    }
+
+    finalResponse = retryResponse;
+    result.recovered = true; // the retry itself counts as recovery, even if this content parsed cleanly
+  }
+
+  const { verdict, recovered } = result;
 
   for (const field of REQUIRED_FIELDS) {
     if (!(field in verdict)) {
@@ -108,7 +217,7 @@ export async function judgeTutorResponse({
     }
   }
 
-  return {
+  const verdictOut = {
     no_answer_leak: verdict.no_answer_leak,
     has_guiding_question: verdict.has_guiding_question,
     age_appropriate_tone: verdict.age_appropriate_tone,
@@ -118,6 +227,15 @@ export async function judgeTutorResponse({
     // from the requested `judgeModel` if OpenRouter (or createChatCompletion's
     // own fallback retry) silently routed to a different underlying model.
     // Surfacing it keeps silent judge-fallbacks visible in reports.
-    judgeModelActual: response.model ?? judgeModel,
+    judgeModelActual: finalResponse.model ?? judgeModel,
   };
+
+  if (recovered) {
+    // Visibility into judge flakiness: true whenever attempt 1's direct
+    // parseLLMJson call didn't cleanly produce the verdict (brace-scan
+    // recovery and/or a retry call were needed).
+    verdictOut.parseRecovered = true;
+  }
+
+  return verdictOut;
 }

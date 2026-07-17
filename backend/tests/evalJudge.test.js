@@ -197,3 +197,100 @@ test('judgeTutorResponse: unparseable content throws', async () => {
 
   await assert.rejects(() => judgeTutorResponse(baseArgs));
 });
+
+// --- parse recovery (E3.4b) ---
+
+const fullVerdict = {
+  no_answer_leak: true,
+  has_guiding_question: true,
+  age_appropriate_tone: true,
+  no_multi_number_elicitation: true,
+  reasoning: 'Tutor asked a single guiding question without revealing the answer.',
+};
+
+test('judgeTutorResponse: prose-prefixed JSON is recovered via brace-scan without a retry call', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    return {
+      model: 'nvidia/nemotron-3-super-120b-a12b:free',
+      choices: [
+        { message: { content: `We need to check the tutor's response carefully.\n${JSON.stringify(fullVerdict)}` } },
+      ],
+    };
+  });
+
+  const verdict = await judgeTutorResponse(baseArgs);
+
+  assert.equal(calls.length, 1);
+  assert.equal(verdict.parseRecovered, true);
+  assert.equal(verdict.no_answer_leak, true);
+  assert.equal(verdict.reasoning, fullVerdict.reasoning);
+});
+
+test('judgeTutorResponse: clean JSON leaves parseRecovered absent', async () => {
+  __setChatCompletionOverride(async () => ({
+    choices: [{ message: { content: JSON.stringify(fullVerdict) } }],
+  }));
+
+  const verdict = await judgeTutorResponse(baseArgs);
+
+  assert.equal(verdict.parseRecovered, undefined);
+});
+
+test('judgeTutorResponse: unrecoverable prose triggers one retry with a JSON-only nudge, then succeeds on clean retry content', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    if (calls.length === 1) {
+      return {
+        choices: [
+          {
+            message: {
+              content: 'I am still thinking this through and have not reached a conclusion about the JSON yet.',
+            },
+          },
+        ],
+      };
+    }
+    return { choices: [{ message: { content: JSON.stringify(fullVerdict) } }] };
+  });
+
+  const verdict = await judgeTutorResponse(baseArgs);
+
+  assert.equal(calls.length, 2);
+  assert.equal(verdict.parseRecovered, true);
+  const retryMessages = calls[1].messages;
+  assert.ok(
+    retryMessages.some((m) => m.content.includes('Respond with ONLY the JSON object')),
+    'retry call should include the JSON-only nudge'
+  );
+});
+
+test('judgeTutorResponse: unusable content on both the initial call and the retry throws', async () => {
+  const calls = [];
+  __setChatCompletionOverride(async (params) => {
+    calls.push(params);
+    return { choices: [{ message: { content: 'no json here, just prose, sorry' } }] };
+  });
+
+  await assert.rejects(() => judgeTutorResponse(baseArgs));
+  assert.equal(calls.length, 2);
+});
+
+test('judgeTutorResponse: brace-scan ignores braces inside a reasoning string when finding the balanced block', async () => {
+  const verdictWithBraces = {
+    ...fullVerdict,
+    reasoning: 'Compare the sets {1,2,3} and {4,5} to see which operation applies.',
+  };
+  __setChatCompletionOverride(async () => ({
+    choices: [
+      { message: { content: `We need to think about this. ${JSON.stringify(verdictWithBraces)} Done.` } },
+    ],
+  }));
+
+  const verdict = await judgeTutorResponse(baseArgs);
+
+  assert.equal(verdict.parseRecovered, true);
+  assert.equal(verdict.reasoning, verdictWithBraces.reasoning);
+});
