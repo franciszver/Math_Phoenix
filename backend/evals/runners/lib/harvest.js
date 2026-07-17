@@ -22,6 +22,12 @@ const __dirname = path.dirname(__filename);
 import dotenv from 'dotenv';
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
+// --url is a trusted, developer-supplied CLI arg (this script is run
+// manually, never wired to accept a URL from an untrusted source) - the
+// same trust boundary the rest of this package's runners assume for their
+// own argv. DASHBOARD_PASSWORD is sent only to that operator-chosen URL, so
+// a malicious --url could exfiltrate it in principle, but doing so requires
+// the developer running the CLI to hand it a hostile value themselves.
 // Parse command-line arguments
 function parseArgs(argv) {
   const args = {

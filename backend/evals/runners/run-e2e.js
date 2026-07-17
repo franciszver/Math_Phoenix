@@ -96,18 +96,25 @@ export async function runE2eCase(testCase, judgeModel) {
       calls += 1;
       const result = await processStudentResponse({ studentResponse, problem, steps });
       finalTutorMessage = result.tutorMessage;
+
+      if (hintFiredAtTurn === null && result.step.hint_used) {
+        hintFiredAtTurn = turn;
+      }
+
+      // detectSolutionCompletion is called with `steps` BEFORE the current
+      // turn's step is appended - matching chatHandler.js, where the local
+      // `steps` const (captured pre-turn) is passed to detectSolutionCompletion
+      // unmodified, since addStepToProblem persists result.step via a fresh
+      // getSession() and never mutates that local array.
+      calls += 1;
+      const completion = await detectSolutionCompletion(studentResponse, problem, steps);
+
       // Pushed unmodified, exactly as chatHandler.js does via
       // addStepToProblem(sessionCode, result.step) - same field shape
       // (tutor_prompt, student_response, hint_used, progress_made,
       // stuck_turns, timestamp).
       steps.push(result.step);
 
-      if (hintFiredAtTurn === null && result.step.hint_used) {
-        hintFiredAtTurn = turn;
-      }
-
-      calls += 1;
-      const completion = await detectSolutionCompletion(studentResponse, problem, steps);
       if (completion.solution_completed) {
         completedAtTurn = turn;
         completedCorrect = completion.is_correct;
