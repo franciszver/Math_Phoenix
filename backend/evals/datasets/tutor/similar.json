@@ -1,0 +1,12 @@
+[
+  { "id": "sim-001", "input": { "originalProblem": { "raw_input": "Solve for x: 2x + 5 = 13", "normalized_latex": "2x + 5 = 13", "category": "algebra" }, "count": 3 } },
+  { "id": "sim-002", "input": { "originalProblem": { "raw_input": "A rectangle has a length of 5 cm and a width of 3 cm. What is its area?", "normalized_latex": "A rectangle has a length of 5 cm and a width of 3 cm. What is its area?", "category": "geometry" }, "count": 3 } },
+  { "id": "sim-003", "input": { "originalProblem": { "raw_input": "Add 2/5 + 1/5", "normalized_latex": "2/5 + 1/5", "category": "fractions" }, "count": 3 } },
+  { "id": "sim-004", "input": { "originalProblem": { "raw_input": "Sarah has 5 apples and buys 3 more. How many apples does she have now?", "normalized_latex": "Sarah has 5 apples and buys 3 more. How many apples does she have now?", "category": "arithmetic" }, "count": 3 } },
+  { "id": "sim-005", "input": { "originalProblem": { "raw_input": "A triangle has angles of 50 degrees and 60 degrees. What is the third angle?", "normalized_latex": "A triangle has angles of 50 degrees and 60 degrees. What is the third angle?", "category": "geometry" }, "count": 3 } },
+  { "id": "sim-006", "input": { "originalProblem": { "raw_input": "Solve for x: 2(x+3) = 16", "normalized_latex": "2(x+3) = 16", "category": "algebra" }, "count": 3 } },
+  { "id": "sim-007", "input": { "originalProblem": { "raw_input": "What is 37 x 4?", "normalized_latex": "37 * 4", "category": "arithmetic" }, "count": 3 } },
+  { "id": "sim-008", "input": { "originalProblem": { "raw_input": "Simplify 18/24", "normalized_latex": "18/24", "category": "fractions" }, "count": 3 } },
+  { "id": "sim-009", "input": { "originalProblem": { "raw_input": "Find the perimeter of a square with side length 7 cm", "normalized_latex": "Find the perimeter of a square with side length 7 cm", "category": "geometry" }, "count": 3 } },
+  { "id": "sim-010", "input": { "originalProblem": { "raw_input": "Solve for x: x/4 = 9", "normalized_latex": "x/4 = 9", "category": "algebra" }, "count": 3 } }
+]

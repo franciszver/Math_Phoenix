@@ -1,0 +1,53 @@
+[
+  { "id": "mcq-001", "input": { "problem": { "raw_input": "Solve for x: 2x + 5 = 13", "normalized_latex": "2x + 5 = 13", "category": "algebra" }, "approach": "Solving a linear equation by isolating the variable: subtract the constant from both sides, then divide by the coefficient.", "conversationSteps": [
+    { "tutor_prompt": "What should we do first to isolate the x term?", "student_response": "Subtract 5 from both sides", "progress_made": true },
+    { "tutor_prompt": "Great, that gives 2x = 8. What's next?", "student_response": "Divide both sides by 2", "progress_made": true },
+    { "tutor_prompt": "Exactly! So what is x?", "student_response": "x = 4", "progress_made": true }
+  ] }, "known_answer": 4 },
+
+  { "id": "mcq-002", "input": { "problem": { "raw_input": "A rectangle has a length of 5 cm and a width of 3 cm. What is its area?", "normalized_latex": "A rectangle has a length of 5 cm and a width of 3 cm. What is its area?", "category": "geometry" }, "approach": "Using the area of a rectangle formula: area = length times width.", "conversationSteps": [
+    { "tutor_prompt": "What formula gives us the area of a rectangle?", "student_response": "length times width", "progress_made": true },
+    { "tutor_prompt": "Right! So what do we multiply?", "student_response": "5 times 3, which is 15 square cm", "progress_made": true }
+  ] }, "known_answer": 15 },
+
+  { "id": "mcq-003", "input": { "problem": { "raw_input": "Add 2/5 + 1/5", "normalized_latex": "2/5 + 1/5", "category": "fractions" }, "approach": "Adding fractions with a common denominator by adding the numerators and keeping the denominator.", "conversationSteps": [
+    { "tutor_prompt": "What do you notice about the denominators?", "student_response": "They're both 5", "progress_made": true },
+    { "tutor_prompt": "Right, so what do we do with the numerators?", "student_response": "Add them: 2 + 1 = 3, so the answer is 3/5", "progress_made": true }
+  ] }, "known_answer": "3/5" },
+
+  { "id": "mcq-004", "input": { "problem": { "raw_input": "Sarah has 5 apples and buys 3 more. How many apples does she have now?", "normalized_latex": "Sarah has 5 apples and buys 3 more. How many apples does she have now?", "category": "arithmetic" }, "approach": "Modeling a word problem as addition of the starting amount and the amount gained.", "conversationSteps": [
+    { "tutor_prompt": "What are we trying to find?", "student_response": "How many apples she has total", "progress_made": true },
+    { "tutor_prompt": "What operation combines the two amounts?", "student_response": "Addition: 5 + 3 = 8", "progress_made": true }
+  ] }, "known_answer": 8 },
+
+  { "id": "mcq-005", "input": { "problem": { "raw_input": "A triangle has angles of 50 degrees and 60 degrees. What is the third angle?", "normalized_latex": "A triangle has angles of 50 degrees and 60 degrees. What is the third angle?", "category": "geometry" }, "approach": "Using the fact that the interior angles of a triangle sum to 180 degrees.", "conversationSteps": [
+    { "tutor_prompt": "What do we know about the angles in a triangle?", "student_response": "They add up to 180 degrees", "progress_made": true },
+    { "tutor_prompt": "So how do we find the missing angle?", "student_response": "Subtract 50 and 60 from 180, which gives 70 degrees", "progress_made": true }
+  ] }, "known_answer": 70 },
+
+  { "id": "mcq-006", "input": { "problem": { "raw_input": "Solve for x: 2(x+3) = 16", "normalized_latex": "2(x+3) = 16", "category": "algebra" }, "approach": "Solving a linear equation by first distributing the multiplication over the parentheses, then isolating the variable.", "conversationSteps": [
+    { "tutor_prompt": "What should we do first with the parentheses?", "student_response": "Distribute the 2, so 2x + 6 = 16", "progress_made": true },
+    { "tutor_prompt": "Good, what's next?", "student_response": "Subtract 6 from both sides to get 2x = 10", "progress_made": true },
+    { "tutor_prompt": "And then?", "student_response": "Divide by 2, so x = 5", "progress_made": true }
+  ] }, "known_answer": 5 },
+
+  { "id": "mcq-007", "input": { "problem": { "raw_input": "What is 37 x 4?", "normalized_latex": "37 * 4", "category": "arithmetic" }, "approach": "Breaking apart a number into tens and ones to simplify multiplication.", "conversationSteps": [
+    { "tutor_prompt": "How could we break 37 into easier parts?", "student_response": "30 and 7", "progress_made": true },
+    { "tutor_prompt": "Great, so what do we multiply each part by?", "student_response": "30 times 4 is 120, and 7 times 4 is 28, so 120 + 28 = 148", "progress_made": true }
+  ] }, "known_answer": 148 },
+
+  { "id": "mcq-008", "input": { "problem": { "raw_input": "Simplify 18/24", "normalized_latex": "18/24", "category": "fractions" }, "approach": "Simplifying a fraction by dividing the numerator and denominator by their greatest common factor.", "conversationSteps": [
+    { "tutor_prompt": "What is the greatest common factor of 18 and 24?", "student_response": "6", "progress_made": true },
+    { "tutor_prompt": "Right, so what do we do with that?", "student_response": "Divide both by 6, giving 3/4", "progress_made": true }
+  ] }, "known_answer": "3/4" },
+
+  { "id": "mcq-009", "input": { "problem": { "raw_input": "Find the perimeter of a square with side length 7 cm", "normalized_latex": "Find the perimeter of a square with side length 7 cm", "category": "geometry" }, "approach": "Using the perimeter of a square formula: perimeter equals 4 times the side length.", "conversationSteps": [
+    { "tutor_prompt": "How many sides does a square have?", "student_response": "4, and they're all equal", "progress_made": true },
+    { "tutor_prompt": "So how do we find the perimeter?", "student_response": "Multiply 7 by 4, which is 28 cm", "progress_made": true }
+  ] }, "known_answer": 28 },
+
+  { "id": "mcq-010", "input": { "problem": { "raw_input": "Solve for x: x/4 = 9", "normalized_latex": "x/4 = 9", "category": "algebra" }, "approach": "Solving a linear equation by undoing division through multiplication on both sides.", "conversationSteps": [
+    { "tutor_prompt": "What operation undoes division?", "student_response": "Multiplication", "progress_made": true },
+    { "tutor_prompt": "Right, so what do we multiply both sides by?", "student_response": "Multiply both sides by 4, so x = 36", "progress_made": true }
+  ] }, "known_answer": 36 }
+]

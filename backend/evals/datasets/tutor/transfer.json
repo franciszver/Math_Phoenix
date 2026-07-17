@@ -1,0 +1,21 @@
+[
+  { "id": "trf-001", "input": { "problem": { "raw_input": "Solve for x: 2x + 5 = 13", "normalized_latex": "2x + 5 = 13", "category": "algebra", "problem_id": "trf-001-orig" }, "approach": "Solving a linear equation by isolating the variable: subtract the constant from both sides, then divide by the coefficient." }, "known_answer": 4 },
+
+  { "id": "trf-002", "input": { "problem": { "raw_input": "A rectangle has a length of 5 cm and a width of 3 cm. What is its area?", "normalized_latex": "A rectangle has a length of 5 cm and a width of 3 cm. What is its area?", "category": "geometry", "problem_id": "trf-002-orig" }, "approach": "Using the area of a rectangle formula: area = length times width." }, "known_answer": 15 },
+
+  { "id": "trf-003", "input": { "problem": { "raw_input": "Add 2/5 + 1/5", "normalized_latex": "2/5 + 1/5", "category": "fractions", "problem_id": "trf-003-orig" }, "approach": "Adding fractions with a common denominator by adding the numerators and keeping the denominator." }, "known_answer": "3/5" },
+
+  { "id": "trf-004", "input": { "problem": { "raw_input": "Sarah has 5 apples and buys 3 more. How many apples does she have now?", "normalized_latex": "Sarah has 5 apples and buys 3 more. How many apples does she have now?", "category": "arithmetic", "problem_id": "trf-004-orig" }, "approach": "Modeling a word problem as addition of the starting amount and the amount gained." }, "known_answer": 8 },
+
+  { "id": "trf-005", "input": { "problem": { "raw_input": "A triangle has angles of 50 degrees and 60 degrees. What is the third angle?", "normalized_latex": "A triangle has angles of 50 degrees and 60 degrees. What is the third angle?", "category": "geometry", "problem_id": "trf-005-orig" }, "approach": "Using the fact that the interior angles of a triangle sum to 180 degrees." }, "known_answer": 70 },
+
+  { "id": "trf-006", "input": { "problem": { "raw_input": "Solve for x: 2(x+3) = 16", "normalized_latex": "2(x+3) = 16", "category": "algebra", "problem_id": "trf-006-orig" }, "approach": "Solving a linear equation by first distributing the multiplication over the parentheses, then isolating the variable." }, "known_answer": 5 },
+
+  { "id": "trf-007", "input": { "problem": { "raw_input": "What is 37 x 4?", "normalized_latex": "37 * 4", "category": "arithmetic", "problem_id": "trf-007-orig" }, "approach": "Breaking apart a number into tens and ones to simplify multiplication." }, "known_answer": 148 },
+
+  { "id": "trf-008", "input": { "problem": { "raw_input": "Simplify 18/24", "normalized_latex": "18/24", "category": "fractions", "problem_id": "trf-008-orig" }, "approach": "Simplifying a fraction by dividing the numerator and denominator by their greatest common factor." }, "known_answer": "3/4" },
+
+  { "id": "trf-009", "input": { "problem": { "raw_input": "Find the perimeter of a square with side length 7 cm", "normalized_latex": "Find the perimeter of a square with side length 7 cm", "category": "geometry", "problem_id": "trf-009-orig" }, "approach": "Using the perimeter of a square formula: perimeter equals 4 times the side length." }, "known_answer": 28 },
+
+  { "id": "trf-010", "input": { "problem": { "raw_input": "Solve for x: x/4 = 9", "normalized_latex": "x/4 = 9", "category": "algebra", "problem_id": "trf-010-orig" }, "approach": "Solving a linear equation by undoing division through multiplication on both sides." }, "known_answer": 36 }
+]
