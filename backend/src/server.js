@@ -29,16 +29,19 @@ import {
   endCollaborationHandler
 } from './handlers/collaborationHandler.js';
 import { requireDashboardAuth } from './middleware/auth.js';
+import { perIpLimiter, dailyCapGuard } from './middleware/abuseGuards.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const logger = createLogger();
 
+// Render sits behind a proxy - required for express-rate-limit to see real client IPs
+app.set('trust proxy', 1);
+
 // Middleware
-// CORS configuration - allow CloudFront and localhost for development
+// CORS configuration - allow the frontend and localhost for development
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.CLOUDFRONT_URL || 'https://d3rfhzm2ptw0c2.cloudfront.net', // CloudFront URL
   'http://localhost:5173' // Local development
 ].filter(Boolean); // Remove undefined values
 
@@ -73,14 +76,14 @@ app.get('/health', (req, res) => {
 // API routes
 // Session routes
 app.get('/api/sessions/:code', getSessionHandler);
-app.post('/api/sessions', createOrGetSessionHandler);
+app.post('/api/sessions', perIpLimiter, dailyCapGuard, createOrGetSessionHandler);
 
 // Problem routes (with optional image upload)
-app.post('/api/sessions/:code/problems', upload.single('image'), submitProblemHandler);
-app.post('/api/sessions/:code/problems/select', selectProblemHandler);
+app.post('/api/sessions/:code/problems', perIpLimiter, dailyCapGuard, upload.single('image'), submitProblemHandler);
+app.post('/api/sessions/:code/problems/select', perIpLimiter, dailyCapGuard, selectProblemHandler);
 
 // Chat routes
-app.post('/api/sessions/:code/chat', sendChatMessageHandler);
+app.post('/api/sessions/:code/chat', perIpLimiter, dailyCapGuard, sendChatMessageHandler);
 
 // Dashboard routes
 // Login (no auth required)
@@ -90,7 +93,7 @@ app.post('/api/dashboard/login', loginHandler);
 app.get('/api/dashboard/stats/aggregate', requireDashboardAuth, getAggregateStatsHandler);
 app.get('/api/dashboard/sessions', requireDashboardAuth, getAllSessionsHandler);
 app.get('/api/dashboard/sessions/:code', requireDashboardAuth, getSessionDetailsHandler);
-app.get('/api/dashboard/sessions/:studentSessionId/similar-problems', requireDashboardAuth, getSimilarProblemsHandler);
+app.get('/api/dashboard/sessions/:studentSessionId/similar-problems', requireDashboardAuth, perIpLimiter, dailyCapGuard, getSimilarProblemsHandler);
 app.put('/api/dashboard/sessions/:code/problems/:problemId', requireDashboardAuth, updateProblemTagsHandler);
 app.delete('/api/dashboard/sessions/:code', requireDashboardAuth, deleteSessionHandler);
 
@@ -121,11 +124,14 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// Start the server
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start the server (skipped under tests so importing this module doesn't
+// bind a real port / leave a dangling listener)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
 export default app;
 
