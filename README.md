@@ -1,4 +1,5 @@
 # Math_Phoenix
+[![CI](https://github.com/franciszver/Math_Phoenix/actions/workflows/ci.yml/badge.svg)](https://github.com/franciszver/Math_Phoenix/actions/workflows/ci.yml)
 
 A **K-12 Socratic math tutor** — a web app where students submit a math problem (typed or photographed) and work through it in a guided chat.  
 The AI tutor never gives the answer; it asks one guiding question at a time, offers hints after two stuck turns, detects when the student reaches the solution, and follows up with a short multiple-choice quiz.  

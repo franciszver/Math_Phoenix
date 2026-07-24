@@ -34,6 +34,7 @@ coverage/
 
 # Local planning docs (not committed)
 _docs/plans/
+prd/
 
 # Eval run reports (regenerated per run, not committed)
 backend/evals/reports/
