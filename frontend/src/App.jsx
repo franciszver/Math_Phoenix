@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard';
 import { DashboardLink } from './components/DashboardLink';
 import { CollaborationWorkspace } from './components/CollaborationWorkspace';
 import { createSession, resumeSession, getSession, dashboardLogin } from './services/api';
+import { useColdStartNotice } from './hooks/useColdStartNotice';
 import './App.css';
 
 function AppContent() {
@@ -31,6 +32,10 @@ function AppContent() {
   const [collaborationRequested, setCollaborationRequested] = useState(false);
   const [collaborationSessionId, setCollaborationSessionId] = useState(null);
 
+  // Surfaces a "server is waking up" notice when the session create/resume
+  // request (the first thing a visitor hits) is slow, e.g. Render free-tier
+  // cold start (~50s) instead of a bare "Loading..." spinner.
+  const isColdStarting = useColdStartNotice(isLoading);
 
   // Clear dashboard token from localStorage on mount - always require password
   // BUT preserve it on collaboration routes so teachers can be identified
@@ -217,7 +222,11 @@ function AppContent() {
   if (isLoading) {
     return (
       <div className="app-container">
-        <div className="loading">Loading...</div>
+        <div className="loading">
+          {isColdStarting
+            ? 'The demo server is waking up (free hosting) — this can take up to a minute.'
+            : 'Loading...'}
+        </div>
       </div>
     );
   }
