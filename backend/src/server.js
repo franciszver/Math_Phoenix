@@ -34,6 +34,7 @@ import { perIpLimiter, dailyCapGuard } from './middleware/abuseGuards.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 const logger = createLogger();
+const llmGuards = [perIpLimiter, dailyCapGuard];
 
 // Render sits behind a proxy - required for express-rate-limit to see real client IPs
 app.set('trust proxy', 1);
@@ -76,14 +77,14 @@ app.get('/health', (req, res) => {
 // API routes
 // Session routes
 app.get('/api/sessions/:code', getSessionHandler);
-app.post('/api/sessions', perIpLimiter, dailyCapGuard, createOrGetSessionHandler);
+app.post('/api/sessions', ...llmGuards, createOrGetSessionHandler);
 
 // Problem routes (with optional image upload)
-app.post('/api/sessions/:code/problems', perIpLimiter, dailyCapGuard, upload.single('image'), submitProblemHandler);
-app.post('/api/sessions/:code/problems/select', perIpLimiter, dailyCapGuard, selectProblemHandler);
+app.post('/api/sessions/:code/problems', ...llmGuards, upload.single('image'), submitProblemHandler);
+app.post('/api/sessions/:code/problems/select', ...llmGuards, selectProblemHandler);
 
 // Chat routes
-app.post('/api/sessions/:code/chat', perIpLimiter, dailyCapGuard, sendChatMessageHandler);
+app.post('/api/sessions/:code/chat', ...llmGuards, sendChatMessageHandler);
 
 // Dashboard routes
 // Login (no auth required)
@@ -93,7 +94,7 @@ app.post('/api/dashboard/login', loginHandler);
 app.get('/api/dashboard/stats/aggregate', requireDashboardAuth, getAggregateStatsHandler);
 app.get('/api/dashboard/sessions', requireDashboardAuth, getAllSessionsHandler);
 app.get('/api/dashboard/sessions/:code', requireDashboardAuth, getSessionDetailsHandler);
-app.get('/api/dashboard/sessions/:studentSessionId/similar-problems', requireDashboardAuth, perIpLimiter, dailyCapGuard, getSimilarProblemsHandler);
+app.get('/api/dashboard/sessions/:studentSessionId/similar-problems', requireDashboardAuth, ...llmGuards, getSimilarProblemsHandler);
 app.put('/api/dashboard/sessions/:code/problems/:problemId', requireDashboardAuth, updateProblemTagsHandler);
 app.delete('/api/dashboard/sessions/:code', requireDashboardAuth, deleteSessionHandler);
 
