@@ -17,7 +17,8 @@ export const perIpLimiter = rateLimit({
   }
 });
 
-let cap = parseInt(process.env.DAILY_CAP, 10) || 150;
+const parsed = parseInt(process.env.DAILY_CAP, 10);
+let cap = Number.isFinite(parsed) ? parsed : 150;
 let count = 0;
 let currentDateKey = null;
 let nowFn = () => new Date();
