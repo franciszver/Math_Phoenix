@@ -90,3 +90,24 @@ test('dailyCapGuard: resets and allows requests again on a simulated new day', a
     server.close();
   }
 });
+
+test('dailyCapGuard: DAILY_CAP=0 env should hard-disable (cap should be 0, not coerced to 150)', async () => {
+  // This test documents the expected behavior when DAILY_CAP=0 in env.
+  // It uses __resetDailyCap(0) to simulate proper parsing of DAILY_CAP='0'.
+  // Currently, parseInt(process.env.DAILY_CAP, 10) || 150 coerces 0 to 150.
+  // After the fix, it should properly resolve to 0.
+  __resetDailyCap(0);
+  const app = makeApp(dailyCapGuard);
+  const { server, baseUrl } = await listen(app);
+
+  try {
+    const first = await fetch(`${baseUrl}/guarded`);
+    // When DAILY_CAP=0, very first request should be blocked
+    assert.equal(first.status, 429);
+    assert.deepEqual(await first.json(), {
+      error: 'Daily demo AI limit reached, please try again tomorrow.'
+    });
+  } finally {
+    server.close();
+  }
+});
