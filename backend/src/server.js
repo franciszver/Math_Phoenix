@@ -30,6 +30,8 @@ import {
 } from './handlers/collaborationHandler.js';
 import { requireDashboardAuth } from './middleware/auth.js';
 import { perIpLimiter, dailyCapGuard } from './middleware/abuseGuards.js';
+import { shouldSeedDemoData, seedDemoData } from './services/demoSeed.js';
+import { sessionStore } from './services/memoryStore.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -124,6 +126,12 @@ process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', error);
   process.exit(1);
 });
+
+// Optionally seed synthetic demo sessions (off by default; never calls an LLM)
+if (shouldSeedDemoData()) {
+  const seededCount = seedDemoData(sessionStore);
+  logger.info(`[DEMO_SEED] Seeded ${seededCount} demo sessions at boot`);
+}
 
 // Start the server (skipped under tests so importing this module doesn't
 // bind a real port / leave a dangling listener)
