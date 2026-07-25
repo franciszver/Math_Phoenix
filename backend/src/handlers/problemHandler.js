@@ -3,13 +3,13 @@
  * Handles text and image problem submissions
  */
 
-import { createSession, getSession, addProblemToSession, addToTranscript, updateSession } from '../services/sessionService.js';
+import { getSession, addProblemToSession, addToTranscript, updateSession } from '../services/sessionService.js';
 import { extractTextFromImage, detectMultipleProblems, detectAndExtractWordProblem } from '../services/imageService.js';
 import { processProblem, detectMultipleProblems as detectMultipleProblemsText, hasMathProblem, validateMultipleProblems, validateProblem } from '../services/problemService.js';
 import { generateInitialPrompt } from '../services/socraticEngine.js';
 import { collectMLData } from '../services/mlDataService.js';
 import { createLogger } from '../utils/logger.js';
-import { ValidationError } from '../utils/errorHandler.js';
+import { ValidationError, NotFoundError } from '../utils/errorHandler.js';
 import { validateSessionCode } from '../utils/sessionCode.js';
 
 const logger = createLogger();
@@ -24,30 +24,22 @@ export async function submitProblemHandler(req, res, next) {
     const { text, session_code } = req.body;
     const imageFile = req.file;
 
-    // Get or create session
-    // Use code from URL params if available, otherwise from body
+    // Require an existing session. Unauthenticated callers must not be able
+    // to trigger session creation (and the OCR/LLM chain below) by POSTing
+    // to this route with an unknown/missing session code.
     let sessionCode = code || session_code;
-    let session;
 
-    if (sessionCode) {
-      // Validate session code
-      if (!validateSessionCode(sessionCode)) {
-        throw new ValidationError('Invalid session code format', 'session_code');
-      }
-
-      try {
-        session = await getSession(sessionCode);
-      } catch (error) {
-        // Session doesn't exist, create new one with same code
-        // (though typically we'd create a new one with a new code)
-        session = await createSession(sessionCode);
-        sessionCode = session.session_code;
-      }
-    } else {
-      // No session code provided, create new session
-      session = await createSession();
-      sessionCode = session.session_code;
+    if (!sessionCode) {
+      throw new NotFoundError('Session');
     }
+
+    if (!validateSessionCode(sessionCode)) {
+      throw new ValidationError('Invalid session code format', 'session_code');
+    }
+
+    // Throws NotFoundError if the session doesn't exist - propagated via
+    // next(error) below, before any OCR/LLM work happens.
+    await getSession(sessionCode);
 
     // Validate input
     if (!text && !imageFile) {
