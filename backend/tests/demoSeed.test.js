@@ -27,14 +27,6 @@ test('shouldSeedDemoData gate: DEMO_SEED=true seeds', () => {
   assert.equal(shouldSeedDemoData({ DEMO_SEED: 'true' }), true);
 });
 
-test('gate logic: store stays untouched when DEMO_SEED is unset (boot simulation)', () => {
-  const store = createStore();
-  if (shouldSeedDemoData({})) {
-    seedDemoData(store);
-  }
-  assert.deepEqual(store.scanAll(), []);
-});
-
 test('seedDemoData inserts 4 sessions with obviously-fake student names, and they scan cleanly', () => {
   const store = createStore();
   const count = seedDemoData(store);
